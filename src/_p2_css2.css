@@ -1,0 +1,197 @@
+.lyricbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.lyricbar .title{font-size:15px;font-weight:600;letter-spacing:.01em;max-width:340px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.lyricbar .sub{font-size:11px;color:var(--mute);font-family:var(--mono);margin-top:3px}
+.lyriclist{flex:1;min-height:0;overflow-y:auto;border:1px solid var(--line);border-radius:12px;
+  background:#0B1216;padding:6px}
+.lyr{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:7px 10px;border-radius:8px;
+  cursor:pointer;transition:background .1s;align-items:baseline}
+.lyr:hover{background:#121C22}
+.lyr.on{background:rgba(59,227,198,.075);box-shadow:inset 2px 0 0 var(--acc)}
+.lyr.past .txt{color:#4B535F}
+.lyr .t{font-family:var(--mono);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.lyr.on .t{color:var(--acc)}
+.lyr .txt{font-size:13.5px;line-height:1.45;color:#C9D1DA;word-break:break-word}
+.lyr.on .txt{color:#F2F7FA}
+.empty{display:grid;place-items:center;height:100%;color:var(--mute);font-size:12px;text-align:center;line-height:1.9}
+
+.preview{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:#000;aspect-ratio:16/9;display:grid;place-items:center}
+.preview .ptext{text-align:center;padding:0 8%;line-height:1.5;color:#fff;font-weight:700;
+  transition:opacity .2s}
+
+.transport{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 18px;
+  border-top:1px solid var(--line);background:rgba(10,16,20,.92);backdrop-filter:blur(12px);position:relative;z-index:10}
+.tleft{display:flex;align-items:center;gap:10px;min-width:0}
+.tmid{display:flex;align-items:center;gap:8px}
+.tright{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.go{width:52px;height:52px;border-radius:50%;border:1px solid rgba(59,227,198,.45);
+  background:radial-gradient(circle at 50% 30%,rgba(59,227,198,.24),rgba(59,227,198,.05));
+  display:grid;place-items:center;transition:.15s;color:#CFFFF7}
+.go:hover{background:rgba(59,227,198,.26);box-shadow:0 0 0 5px rgba(59,227,198,.07)}
+.go.rec{border-color:rgba(255,92,108,.5);background:radial-gradient(circle at 50% 30%,rgba(255,92,108,.22),rgba(255,92,108,.04));color:#FFD9DD}
+.go svg{width:19px;height:19px}
+/* 运行中：图标换成暂停，边框转冷白，让人一眼看出"再按一下就停" */
+.go.ico-running{border-color:rgba(233,236,241,.6);background:radial-gradient(circle at 50% 30%,rgba(233,236,241,.2),rgba(233,236,241,.05));color:#F1F4F8}
+.go .ico-pause{display:none}
+.go.ico-running .ico-play{display:none}
+.go.ico-running .ico-pause{display:block}
+.tbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:#141E24;
+  display:grid;place-items:center;transition:.14s;color:var(--dim)}
+.tbtn:hover{color:var(--text);border-color:var(--line2);background:#19242B}
+.tbtn svg{width:15px;height:15px}
+.progress{flex:1;height:3px;background:#162028;border-radius:3px;position:relative;margin:0 6px;min-width:70px}
+.progress i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#1FAF9B,var(--acc));width:0;border-radius:3px}
+.progress b{position:absolute;top:-2px;width:7px;height:7px;border-radius:50%;background:var(--acc);
+  box-shadow:0 0 10px rgba(59,227,198,.8);margin-left:-3.5px}
+
+.out{position:fixed;inset:0;background:#000;overflow:hidden;display:none;z-index:9999}
+body.is-output .app{display:none}
+body.is-output .out{display:block}
+.stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;background:#000}
+.frame{position:relative;overflow:hidden;background:#000;transform-origin:center;isolation:isolate}
+.bglayer{position:absolute;inset:0;z-index:0;pointer-events:none}
+.bg-none{background:#000}
+.bg-grad{background:radial-gradient(120% 90% at 50% 110%,#101C24 0%,#05070A 58%,#000 100%);
+  animation:breathe 11s ease-in-out infinite alternate}
+@keyframes breathe{0%{transform:scale(1);opacity:.72}50%{opacity:1}100%{transform:scale(1.09);opacity:.82}}
+.bg-canvas{width:100%;height:100%;display:block}
+.bg-media{width:100%;height:100%;object-fit:cover;display:block}
+.bg-scrim{position:absolute;inset:0;z-index:1;background:
+  radial-gradient(70% 60% at 50% 52%,rgba(0,0,0,0) 0%,rgba(0,0,0,.45) 72%,rgba(0,0,0,.78) 100%)}
+
+.lyrwrap{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;
+  padding:9% 8%;pointer-events:none}
+.lyrstack{width:100%;text-align:center;font-weight:700;letter-spacing:.01em;
+  font-size:var(--fs);line-height:var(--lh);color:#fff;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:0}
+.lyrline{min-height:calc(var(--fs) * var(--lh));display:flex;align-items:center;justify-content:center;
+  transition:opacity .22s,filter .22s,transform .22s;will-change:opacity,transform,filter}
+.lyrline.cur{opacity:1}
+.lyrline.ctx{opacity:.42;filter:blur(1.1px)}
+.lyrline.far{opacity:0;min-height:0;height:0;overflow:hidden}
+.lyrline.ghost{opacity:0}
+
+/* 边缘渐隐：最上/最下几行淡出，避免被取景框硬切。只作用于歌词层，不动 HUD 与背景 */
+.frame.fade-mask .lyrwrap{
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,#000 11%,#000 89%,rgba(0,0,0,0) 100%);
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,#000 11%,#000 89%,rgba(0,0,0,0) 100%);
+}
+/* 竖排的渐隐方向要跟着文字排布走：竖排是横向展开的列，上下渐隐等于没做 */
+.frame.fade-mask.s-vertical .lyrwrap{
+  -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0) 0%,#000 12%,#000 88%,rgba(0,0,0,0) 100%);
+  mask-image:linear-gradient(to right,rgba(0,0,0,0) 0%,#000 12%,#000 88%,rgba(0,0,0,0) 100%);
+}
+
+/* 聚焦放大：当前行比上下文行大一档，视线先落在它身上 */
+.frame.focus-zoom .lyrline.cur{transform:scale(1.055)}
+.frame.focus-zoom .lyrline.ctx{opacity:.34}
+
+.s-classic .lyrstack{font-weight:800}
+.s-classic .lyrline.cur{text-shadow:0 0 26px rgba(255,255,255,.2),0 2px 30px rgba(0,0,0,.85)}
+.s-karaoke .lyrstack{font-weight:900}
+.s-karaoke .lyrline.cur .char{background:linear-gradient(90deg,#fff var(--p),rgba(255,255,255,.40) var(--p));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(255,255,255,.14))}
+.s-glow .lyrstack{font-weight:700;letter-spacing:.04em}
+.s-glow .lyrline.cur{color:#DFFFFA;text-shadow:0 0 10px rgba(59,227,198,.55),0 0 34px rgba(59,227,198,.26),0 0 72px rgba(59,227,198,.12)}
+.s-bounce .lyrline.cur .char{display:inline-block;animation:chb .42s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay:calc(var(--i) * 34ms)}
+@keyframes chb{0%{transform:translateY(.34em) scale(.92);opacity:0}60%{transform:translateY(-.06em) scale(1.04);opacity:1}
+  100%{transform:translateY(0) scale(1);opacity:1}}
+.s-vertical .lyrwrap{align-items:center;justify-content:center;padding:6% 7%}
+.s-vertical .lyrstack{writing-mode:vertical-rl;text-orientation:upright;width:auto;text-align:start;
+  letter-spacing:.16em;font-weight:600;line-height:1.95;max-height:100%;flex-direction:row}
+.s-vertical .lyrline{min-height:0;min-width:calc(var(--fs) * 1.72)}
+.s-minimal .lyrstack{font-weight:600;letter-spacing:.02em}
+
+/* 换行上浮：每次换行新行从下方 0.28em 浮入。
+   用独立的 translate 属性而不是 transform，避免和「聚焦放大」的 scale 互相覆盖 */
+@keyframes rowIn{from{opacity:0;translate:0 .28em}to{opacity:1;translate:0 0}}
+.lyrline.cur{animation:rowIn .26s cubic-bezier(.22,.61,.36,1) both}
+
+/* 打字机：逐字按序闪现，念白与诗朗诵用 */
+.s-type .lyrstack{font-weight:700;letter-spacing:.04em}
+.s-type .lyrline.cur .char{animation:tw .16s steps(2,end) both;animation-delay:calc(var(--i) * 22ms)}
+@keyframes tw{from{opacity:0}to{opacity:1}}
+.s-type .lyrline.cur::after{content:'';display:inline-block;width:.06em;height:1em;
+  background:var(--acc);margin-left:.18em;vertical-align:-.08em;animation:blink 1s steps(1,end) infinite}
+@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+
+/* 霓虹：三层同色外发光，深场和 LED 屏上最亮 */
+.s-neon .lyrstack{font-weight:800;letter-spacing:.03em}
+.s-neon .lyrline.cur{color:#fff;text-shadow:0 0 2px #fff,0 0 8px var(--acc),
+  0 0 18px var(--acc),0 0 34px rgba(59,227,198,.62),0 0 64px rgba(59,227,198,.3)}
+.s-neon .lyrline.ctx{opacity:.34;text-shadow:0 0 12px rgba(255,255,255,.14)}
+
+/* 双色渐变：当前行整行走冷白→青绿，其余行保持实色 */
+.s-duo .lyrstack{font-weight:800}
+.s-duo .lyrline.cur{background:linear-gradient(96deg,#FFFFFF 0%,#C6EBFF 44%,#3BE3C6 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(59,227,198,.24))}
+
+/* 横向跑马：当前行缓慢左右往复，适合动态屏与侧屏 */
+.s-marquee .lyrstack{font-weight:800;letter-spacing:.03em}
+.s-marquee .lyrline.cur{animation:mq 9.5s ease-in-out infinite alternate}
+@keyframes mq{from{translate:-13% 0}to{translate:13% 0}}
+
+/* 透视倾斜：整叠字幕轻微后倾，像贴在斜面屏上 */
+.s-persp .lyrwrap{perspective:1300px}
+.s-persp .lyrstack{transform:rotateX(15deg) scale(1.015);transform-origin:50% 55%}
+
+/* 竖排增强：列间留白、逐列收缩、当前列带纵向光 */
+.s-vertical .lyrstack{letter-spacing:.18em;gap:.34em}
+.s-vertical .lyrline.ctx{opacity:.36;filter:blur(.6px)}
+.s-vertical .lyrline.cur{text-shadow:0 0 20px rgba(255,255,255,.3),0 0 44px rgba(59,227,198,.18),0 3px 24px rgba(0,0,0,.85)}
+
+.char{display:inline-block;white-space:pre}
+
+.outhud{position:absolute;z-index:4;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55);
+  letter-spacing:.14em;pointer-events:none;display:flex;gap:14px;align-items:center}
+.outhud.tl{top:3.2%;left:3.4%}
+.outhud.br{bottom:3.2%;right:3.4%}
+.outhud .dot{width:5px;height:5px;border-radius:50%;background:var(--acc);
+  box-shadow:0 0 8px var(--acc)}
+.outhud .dim{color:rgba(255,255,255,.2)}
+
+#toast{position:fixed;left:50%;bottom:94px;transform:translateX(-50%) translateY(8px);
+  background:#141A22;border:1px solid var(--line2);border-radius:8px;padding:9px 16px;font-size:12px;
+  color:var(--text);opacity:0;pointer-events:none;transition:.22s;z-index:50;box-shadow:0 12px 34px rgba(0,0,0,.6)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.modal{position:fixed;inset:0;background:rgba(3,4,6,.72);backdrop-filter:blur(6px);z-index:60;
+  display:none;place-items:center}
+.modal.on{display:grid}
+.modal .box{width:520px;max-width:92vw;background:#0E1217;border:1px solid var(--line2);border-radius:12px;
+  padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal .box h4{font-size:14px;font-weight:600;margin-bottom:12px}
+.modal .box textarea{height:180px;resize:vertical;font-family:var(--mono);font-size:11px;line-height:1.6}
+.modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+/* ---- 歌单弹窗 ---- */
+.sllist{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.02)}
+.sllist .it{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px}
+.sllist .it:last-child{border-bottom:0}
+.sllist .it.on{background:rgba(94,160,255,.10)}
+.sllist .it .tc{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:92px}
+.sllist .it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sllist .it .ln{font-family:var(--mono);font-size:10px;color:var(--mute)}
+.sllist .it button{padding:3px 8px;font-size:11px}
+
+/* ---- 镜面 / 倒计时 / 临时上屏 ---- */
+.mir-x .lyrwrap{transform:scaleX(-1)}
+.mir-y .lyrwrap{transform:scaleY(-1)}
+
+.cdwrap{position:absolute;inset:0;z-index:3;display:none;place-items:center;pointer-events:none}
+.cdwrap.on{display:grid}
+.cdval{font-family:var(--mono);font-size:min(18vh,168px);font-weight:700;color:#fff;
+  letter-spacing:.04em;text-shadow:0 6px 40px rgba(0,0,0,.85)}
+.cdval.warn{animation:cdblink .62s steps(2,end) infinite}
+@keyframes cdblink{0%{color:#FF5C6C;transform:scale(1.07)}100%{color:#FFFFFF;transform:scale(1)}}
+.cdfull .lyrwrap{opacity:0}
+
+.subwrap{position:absolute;left:0;right:0;bottom:13%;z-index:3;display:none;justify-content:center;
+  pointer-events:none;padding:0 6%}
+.subwrap.on{display:flex}
+.subtxt{font-size:calc(var(--fs,40px) * .62);font-weight:600;color:#FFE9A8;line-height:1.4;
+  text-shadow:0 2px 18px rgba(0,0,0,.9);background:rgba(0,0,0,.30);padding:6px 20px;border-radius:9px}

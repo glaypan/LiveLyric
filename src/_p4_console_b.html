@@ -1,0 +1,134 @@
+    <div class="col c">
+      <div class="lyricbar">
+        <div>
+          <div class="title" id="songTitle">未载入歌词</div>
+          <div class="sub" id="songSub">0 行 · LRC / TTML / SRT / TXT</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn sm" id="btnImport">导入文件</button>
+        <button class="btn sm" id="btnPaste">粘贴文本</button>
+        <button class="btn sm" id="btnOnline">在线获取</button>
+        <input type="file" id="lyricFile" accept=".lrc,.txt,.ttml,.xml,.srt,.ass,.json" style="display:none">
+      </div>
+      <div class="lyriclist" id="lyricList">
+        <div class="empty">导入歌词后在此编辑时间轴<br>
+          <span style="font-family:var(--mono);font-size:11px">双击时间码可手动改写 · 支持逐字歌词</span></div>
+      </div>
+    </div>
+
+    <div class="col r">
+      <div class="card">
+        <div class="card-h"><h3>歌词样式</h3><span class="tag" id="styleTag">CLASSIC</span></div>
+        <div class="grid2" id="styleGrid">
+          <button class="chip on" data-style="classic">经典居中</button>
+          <button class="chip" data-style="karaoke">逐字填充</button>
+          <button class="chip" data-style="glow">柔光</button>
+          <button class="chip" data-style="bounce">逐字弹入</button>
+          <button class="chip" data-style="vertical">竖排</button>
+          <button class="chip" data-style="minimal">极简双行</button>
+          <button class="chip" data-style="type">打字机</button>
+          <button class="chip" data-style="neon">霓虹</button>
+          <button class="chip" data-style="duo">双色渐变</button>
+          <button class="chip" data-style="marquee">横向跑马</button>
+          <button class="chip" data-style="persp">透视倾斜</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">组合预设</span><span class="tag" id="presetTag">—</span></div>
+        <div class="grid2" id="presetSeg">
+          <button class="btn sm" data-preset="night">夜场霓虹</button>
+          <button class="btn sm" data-preset="mono">念白打字</button>
+          <button class="btn sm" data-preset="launch">发布会渐变</button>
+          <button class="btn sm" data-preset="guofeng">国风竖排</button>
+        </div>
+        <div class="grid2" style="margin-top:6px">
+          <button class="btn sm" id="btnSavePreset">存当前组合</button>
+          <button class="btn sm" id="btnMinePreset">用我的组合</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">字号</span><span class="val" id="fsVal">100%</span></div>
+        <input type="range" id="fontSize" min="60" max="170" value="100">
+        <div class="row"><span class="lab">行距</span><span class="val" id="lhVal">1.50</span></div>
+        <input type="range" id="lineHeight" min="100" max="220" value="150">
+        <div class="row"><span class="lab">字距</span><span class="val" id="trVal">1.00</span></div>
+        <input type="range" id="tracking" min="60" max="250" step="5" value="100">
+        <div class="row" style="margin-top:12px"><span class="lab">边缘渐隐</span><span class="sw on" id="swFade"></span></div>
+        <div class="row"><span class="lab">聚焦放大</span><span class="sw" id="swFocus"></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>描边 / 阴影</h3><span class="tag" id="fxTag">OFF</span></div>
+        <div class="row"><span class="lab">描边宽度</span><span class="val" id="skVal">0 px</span></div>
+        <input type="range" id="strokeW" min="0" max="10" step="1" value="0">
+        <div class="row" style="margin-top:9px"><span class="lab">描边颜色</span>
+          <input type="color" id="strokeC" value="#000000" style="width:46px;padding:2px;height:24px">
+        </div>
+        <div class="row" style="margin-top:11px"><span class="lab">阴影模糊</span><span class="val" id="shVal">0 px</span></div>
+        <input type="range" id="shadowB" min="0" max="40" step="2" value="0">
+        <div class="row" style="margin-top:9px"><span class="lab">阴影颜色</span>
+          <input type="color" id="shadowC" value="#000000" style="width:46px;padding:2px;height:24px">
+        </div>
+        <div class="hint" style="margin-top:9px">投影幕布、强光或有景深的舞台，描边比阴影更可靠；逐字填充样式下阴影对透明文字无效。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>背景</h3><span class="tag" id="bgTag">NONE</span></div>
+        <div class="grid2" id="bgGrid">
+          <button class="chip on" data-bg="none">纯黑</button>
+          <button class="chip" data-bg="grad">呼吸渐变</button>
+          <button class="chip" data-bg="aurora">极光流</button>
+          <button class="chip" data-bg="dust">浮尘粒子</button>
+          <button class="chip" data-bg="wave">声波线</button>
+          <button class="chip" data-bg="media">自定义图/视频</button>
+        </div>
+        <input type="file" id="bgFile" accept="image/*,video/*" style="display:none">
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>输出监看</h3><span class="tag" id="monTag">OFFLINE</span></div>
+        <div class="preview" id="miniPreview">
+          <div class="ptext" id="miniText" style="font-size:15px">预览</div>
+        </div>
+        <div class="hint" style="margin-top:9px">输出窗口独立渲染，可拖到扩展显示器后按 F11 或点击「输出全屏」。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>工程</h3><span class="tag" id="docTag">LOCAL</span></div>
+        <div class="grid2">
+          <button class="btn sm" id="btnExport">导出工程</button>
+          <button class="btn sm" id="btnImportProj">导入工程</button>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnEmbedTc">镶嵌时间码</button>
+          <button class="btn sm" id="btnCopyTc">复制</button>
+        </div>
+        <input type="file" id="projFile" accept=".json,application/json" style="display:none">
+        <div class="hint" style="margin-top:9px">导出包含歌词、样式、歌单与全部时间码设置，换机或换浏览器后导入即可还原。</div>
+        <div class="hint" style="margin-top:6px">「镶嵌时间码」把这份歌词的相对时间轴按当前 <span style="color:var(--acc)">anchor</span> 转成 <span style="color:var(--acc)">⌚时:分:秒:帧</span> 库文本，导出后可直接给 QLab / 外部提词器导入。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="tleft">
+      <span class="led" id="ledRun"></span>
+      <div style="min-width:0">
+        <div style="font-size:11px;color:var(--dim)" id="runState">待命</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:2px" id="cueInfo">—</div>
+      </div>
+      <div class="progress" id="progressWrap"><i id="progFill"></i><b id="progKnob" style="left:0"></b></div>
+    </div>
+
+    <div class="tmid">
+      <button class="tbtn" id="btnPrev" title="上一行 (←)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v16M18 4 8 12l10 8z"/></svg></button>
+      <button class="go" id="btnGo" title="GO / 暂停 (Space)"><svg class="ico-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg><svg class="ico-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" stroke="currentColor" stroke-width="2.6" fill="none"/></svg></button>
+      <button class="tbtn" id="btnNext" title="下一行 (→)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 4v16M6 4l10 8-10 8z"/></svg></button>
+    </div>
+
+    <div class="tright">
+      <button class="tbtn" data-off="-100" title="全局微调 -100ms" style="width:26px;height:26px;border-radius:7px;font:600 12px var(--mono)">−</button>
+      <span class="val" id="offsetMini" style="min-width:58px;text-align:center">+0 ms</span>
+      <button class="tbtn" data-off="100" title="全局微调 +100ms" style="width:26px;height:26px;border-radius:7px;font:600 12px var(--mono)">+</button>
+      <button class="btn sm" id="btnClear">清屏</button>
+      <button class="btn sm" id="btnPrevCue">退一行</button>
+      <span class="val" id="posVal" style="min-width:74px;text-align:right">0.00s</span>
+    </div>
+  </div>
+</div>

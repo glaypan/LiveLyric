@@ -1,0 +1,3564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LiveLyric v1.4.10 · 实时歌词同步系统</title>
+<style>
+:root{
+  --bg:#0A1014; --bg2:#0D1418; --panel:#111A1E; --panel2:#172126;
+  --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.13);
+  --text:#E9ECF1; --dim:#8B93A0; --mute:#5A626E;
+  --acc:#3BE3C6; --acc-d:rgba(59,227,198,.14); --warn:#FFB020; --red:#FF5C6C;
+  --mono:"JetBrains Mono","SF Mono","Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit;color:var(--text);
+  background:#0C1318;border:1px solid var(--line);border-radius:6px;padding:7px 9px;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:rgba(59,227,198,.45);box-shadow:0 0 0 3px rgba(59,227,198,.08)}
+input[type="range"]{-webkit-appearance:none;appearance:none;height:22px;background:none;border:0;padding:0}
+input[type="range"]::-webkit-slider-runnable-track{height:3px;background:#1D232C;border-radius:3px}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--acc);margin-top:-4.5px;box-shadow:0 0 0 4px rgba(59,227,198,.12)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#222932;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+.hide{display:none!important}
+
+.app{display:grid;grid-template-rows:64px minmax(0,1fr) 74px;height:100vh;background:
+  radial-gradient(1200px 500px at 18% -10%,rgba(59,227,198,.055),transparent 60%),
+  radial-gradient(900px 420px at 92% 0%,rgba(91,140,255,.045),transparent 60%),
+  var(--bg)}
+
+.topbar{display:flex;align-items:center;gap:22px;padding:0 16px;border-bottom:1px solid var(--line);
+  background:rgba(8,10,13,.72);backdrop-filter:blur(14px);position:relative;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;min-width:196px}
+.mark{width:26px;height:26px;border-radius:7px;background:
+  linear-gradient(140deg,#0F2A28,#0A1416);border:1px solid rgba(59,227,198,.3);
+  display:grid;place-items:center;position:relative;overflow:hidden}
+.mark::before{content:"";width:11px;height:11px;border-radius:2px;
+  background:linear-gradient(180deg,var(--acc),#127E71);box-shadow:0 0 12px rgba(59,227,198,.6)}
+.mark::after{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(90deg,transparent 0 3px,rgba(255,255,255,.05) 3px 4px)}
+.brand b{font-size:14px;letter-spacing:.02em;font-weight:600}
+.brand span{font-size:10px;letter-spacing:.18em;color:var(--mute);text-transform:uppercase;display:block;margin-top:1px}
+
+.tcblock{display:flex;align-items:baseline;gap:12px;min-width:300px}
+.tcbig{font-family:var(--mono);font-size:31px;font-weight:500;font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;line-height:1;color:#F4F7FA;text-shadow:0 0 22px rgba(59,227,198,.16);transition:color .15s}
+.tcbig.lock{color:var(--acc)}
+.tcfps{font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.08em}
+.tcstate{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--dim)}
+.led{width:7px;height:7px;border-radius:50%;background:#333B45;flex:none;transition:.2s}
+.led.live{background:var(--acc);box-shadow:0 0 0 3px rgba(59,227,198,.13),0 0 12px rgba(59,227,198,.5)}
+.led.warn{background:var(--warn)}
+
+.spacer{flex:1}
+.topright{display:flex;align-items:center;gap:8px}
+.btn{padding:7px 13px;border-radius:8px;border:1px solid var(--line2);background:#141E24;
+  color:var(--text);font-size:12px;transition:.14s;white-space:nowrap}
+.btn:hover{background:#1A2029;border-color:rgba(255,255,255,.22)}
+.btn.primary{background:linear-gradient(180deg,rgba(59,227,198,.18),rgba(59,227,198,.08));
+  border-color:rgba(59,227,198,.42);color:#CFFFF7}
+.btn.primary:hover{background:rgba(59,227,198,.22)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--dim)}
+.btn.ghost:hover{color:var(--text);background:#12161C}
+.btn.sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.btn[disabled]{opacity:.34;cursor:not-allowed}
+
+.workspace{display:grid;grid-template-columns:302px minmax(0,1fr) 326px;min-height:0;min-width:1020px}
+.col{min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px;display:flex;flex-direction:column;gap:12px}
+.col.l{border-right:1px solid var(--line);background:rgba(12,20,24,.55)}
+.col.r{border-left:1px solid var(--line);background:rgba(12,20,24,.55)}
+.col.c{padding:14px 16px}
+
+.card{border:1px solid var(--line);border-radius:14px;
+  background:linear-gradient(180deg,#131C21 0%,#0E1519 100%);padding:12px 13px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 10px 24px -18px rgba(0,0,0,.9)}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-h h3{font-size:10px;letter-spacing:.18em;color:var(--mute);text-transform:uppercase;font-weight:600}
+.card-h .tag{font-size:10px;font-family:var(--mono);color:var(--dim);padding:2px 6px;
+  border:1px solid var(--line);border-radius:4px}
+.card-h .tag.ok{color:var(--acc);border-color:rgba(59,227,198,.35);background:rgba(59,227,198,.07)}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.row:last-child{margin-bottom:0}
+.lab{font-size:11px;color:var(--dim);letter-spacing:.02em;flex:none}
+.val{font-family:var(--mono);font-size:11px;color:var(--text);font-variant-numeric:tabular-nums}
+/* 驱动模式和歌词不匹配时标黄：看得见冲突，但决定权仍在人手上 */
+.val.warn{color:var(--warn)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+
+.seg{display:flex;padding:2px;background:#0B1216;border:1px solid var(--line);border-radius:8px;gap:2px}
+.seg button{flex:1;padding:6px 0;font-size:11px;color:var(--dim);border-radius:6px;transition:.13s;white-space:nowrap}
+.seg button.on{color:#DFFFFA;background:#1A2129;box-shadow:inset 0 0 0 1px rgba(59,227,198,.25),
+  0 0 12px rgba(59,227,198,.06)}
+
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 9px;border-radius:7px;
+  border:1px solid var(--line);background:#0C1015;font-size:11px;color:var(--dim);transition:.13s;cursor:pointer}
+.chip:hover{color:var(--text);border-color:var(--line2)}
+.chip.on{color:#CFFFF7;border-color:rgba(59,227,198,.4);background:rgba(59,227,198,.09)}
+
+.meter{height:3px;background:#0A0D11;border-radius:2px;overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1FAF9B,var(--acc));transition:width .08s}
+
+.sw{width:34px;height:19px;border-radius:999px;background:#1A2027;border:1px solid var(--line);
+  position:relative;transition:.16s;flex:none;cursor:pointer}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
+  background:#5C6673;transition:.16s}
+.sw.on{background:rgba(59,227,198,.18);border-color:rgba(59,227,198,.4)}
+.sw.on::after{left:17px;background:var(--acc);box-shadow:0 0 10px rgba(59,227,198,.6)}
+
+.hint{font-size:10px;color:var(--mute);line-height:1.6;letter-spacing:.01em}
+
+.lyricbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.lyricbar .title{font-size:15px;font-weight:600;letter-spacing:.01em;max-width:340px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.lyricbar .sub{font-size:11px;color:var(--mute);font-family:var(--mono);margin-top:3px}
+.lyriclist{flex:1;min-height:0;overflow-y:auto;border:1px solid var(--line);border-radius:12px;
+  background:#0B1216;padding:6px}
+.lyr{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:7px 10px;border-radius:8px;
+  cursor:pointer;transition:background .1s;align-items:baseline}
+.lyr:hover{background:#121C22}
+.lyr.on{background:rgba(59,227,198,.075);box-shadow:inset 2px 0 0 var(--acc)}
+.lyr.past .txt{color:#4B535F}
+.lyr .t{font-family:var(--mono);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.lyr.on .t{color:var(--acc)}
+.lyr .txt{font-size:13.5px;line-height:1.45;color:#C9D1DA;word-break:break-word}
+.lyr.on .txt{color:#F2F7FA}
+.empty{display:grid;place-items:center;height:100%;color:var(--mute);font-size:12px;text-align:center;line-height:1.9}
+
+.preview{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:#000;aspect-ratio:16/9;display:grid;place-items:center}
+.preview .ptext{text-align:center;padding:0 8%;line-height:1.5;color:#fff;font-weight:700;
+  transition:opacity .2s}
+
+.transport{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 18px;
+  border-top:1px solid var(--line);background:rgba(10,16,20,.92);backdrop-filter:blur(12px);position:relative;z-index:10}
+.tleft{display:flex;align-items:center;gap:10px;min-width:0}
+.tmid{display:flex;align-items:center;gap:8px}
+.tright{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.go{width:52px;height:52px;border-radius:50%;border:1px solid rgba(59,227,198,.45);
+  background:radial-gradient(circle at 50% 30%,rgba(59,227,198,.24),rgba(59,227,198,.05));
+  display:grid;place-items:center;transition:.15s;color:#CFFFF7}
+.go:hover{background:rgba(59,227,198,.26);box-shadow:0 0 0 5px rgba(59,227,198,.07)}
+.go.rec{border-color:rgba(255,92,108,.5);background:radial-gradient(circle at 50% 30%,rgba(255,92,108,.22),rgba(255,92,108,.04));color:#FFD9DD}
+.go svg{width:19px;height:19px}
+/* 运行中：图标换成暂停，边框转冷白，让人一眼看出"再按一下就停" */
+.go.ico-running{border-color:rgba(233,236,241,.6);background:radial-gradient(circle at 50% 30%,rgba(233,236,241,.2),rgba(233,236,241,.05));color:#F1F4F8}
+.go .ico-pause{display:none}
+.go.ico-running .ico-play{display:none}
+.go.ico-running .ico-pause{display:block}
+.tbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:#141E24;
+  display:grid;place-items:center;transition:.14s;color:var(--dim)}
+.tbtn:hover{color:var(--text);border-color:var(--line2);background:#19242B}
+.tbtn svg{width:15px;height:15px}
+.progress{flex:1;height:3px;background:#162028;border-radius:3px;position:relative;margin:0 6px;min-width:70px}
+.progress i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#1FAF9B,var(--acc));width:0;border-radius:3px}
+.progress b{position:absolute;top:-2px;width:7px;height:7px;border-radius:50%;background:var(--acc);
+  box-shadow:0 0 10px rgba(59,227,198,.8);margin-left:-3.5px}
+
+.out{position:fixed;inset:0;background:#000;overflow:hidden;display:none;z-index:9999}
+body.is-output .app{display:none}
+body.is-output .out{display:block}
+.stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;background:#000}
+.frame{position:relative;overflow:hidden;background:#000;transform-origin:center;isolation:isolate}
+.bglayer{position:absolute;inset:0;z-index:0;pointer-events:none}
+.bg-none{background:#000}
+.bg-grad{background:radial-gradient(120% 90% at 50% 110%,#101C24 0%,#05070A 58%,#000 100%);
+  animation:breathe 11s ease-in-out infinite alternate}
+@keyframes breathe{0%{transform:scale(1);opacity:.72}50%{opacity:1}100%{transform:scale(1.09);opacity:.82}}
+.bg-canvas{width:100%;height:100%;display:block}
+.bg-media{width:100%;height:100%;object-fit:cover;display:block}
+.bg-scrim{position:absolute;inset:0;z-index:1;background:
+  radial-gradient(70% 60% at 50% 52%,rgba(0,0,0,0) 0%,rgba(0,0,0,.45) 72%,rgba(0,0,0,.78) 100%)}
+
+.lyrwrap{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;
+  padding:9% 8%;pointer-events:none}
+.lyrstack{width:100%;text-align:center;font-weight:700;letter-spacing:.01em;
+  font-size:var(--fs);line-height:var(--lh);color:#fff;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:0}
+.lyrline{min-height:calc(var(--fs) * var(--lh));display:flex;align-items:center;justify-content:center;
+  transition:opacity .22s,filter .22s,transform .22s;will-change:opacity,transform,filter}
+.lyrline.cur{opacity:1}
+.lyrline.ctx{opacity:.42;filter:blur(1.1px)}
+.lyrline.far{opacity:0;min-height:0;height:0;overflow:hidden}
+.lyrline.ghost{opacity:0}
+
+/* 边缘渐隐：最上/最下几行淡出，避免被取景框硬切。只作用于歌词层，不动 HUD 与背景 */
+.frame.fade-mask .lyrwrap{
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,#000 11%,#000 89%,rgba(0,0,0,0) 100%);
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,0) 0%,#000 11%,#000 89%,rgba(0,0,0,0) 100%);
+}
+/* 竖排的渐隐方向要跟着文字排布走：竖排是横向展开的列，上下渐隐等于没做 */
+.frame.fade-mask.s-vertical .lyrwrap{
+  -webkit-mask-image:linear-gradient(to right,rgba(0,0,0,0) 0%,#000 12%,#000 88%,rgba(0,0,0,0) 100%);
+  mask-image:linear-gradient(to right,rgba(0,0,0,0) 0%,#000 12%,#000 88%,rgba(0,0,0,0) 100%);
+}
+
+/* 聚焦放大：当前行比上下文行大一档，视线先落在它身上 */
+.frame.focus-zoom .lyrline.cur{transform:scale(1.055)}
+.frame.focus-zoom .lyrline.ctx{opacity:.34}
+
+.s-classic .lyrstack{font-weight:800}
+.s-classic .lyrline.cur{text-shadow:0 0 26px rgba(255,255,255,.2),0 2px 30px rgba(0,0,0,.85)}
+.s-karaoke .lyrstack{font-weight:900}
+.s-karaoke .lyrline.cur .char{background:linear-gradient(90deg,#fff var(--p),rgba(255,255,255,.40) var(--p));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(255,255,255,.14))}
+.s-glow .lyrstack{font-weight:700;letter-spacing:.04em}
+.s-glow .lyrline.cur{color:#DFFFFA;text-shadow:0 0 10px rgba(59,227,198,.55),0 0 34px rgba(59,227,198,.26),0 0 72px rgba(59,227,198,.12)}
+.s-bounce .lyrline.cur .char{display:inline-block;animation:chb .42s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay:calc(var(--i) * 34ms)}
+@keyframes chb{0%{transform:translateY(.34em) scale(.92);opacity:0}60%{transform:translateY(-.06em) scale(1.04);opacity:1}
+  100%{transform:translateY(0) scale(1);opacity:1}}
+.s-vertical .lyrwrap{align-items:center;justify-content:center;padding:6% 7%}
+.s-vertical .lyrstack{writing-mode:vertical-rl;text-orientation:upright;width:auto;text-align:start;
+  letter-spacing:.16em;font-weight:600;line-height:1.95;max-height:100%;flex-direction:row}
+.s-vertical .lyrline{min-height:0;min-width:calc(var(--fs) * 1.72)}
+.s-minimal .lyrstack{font-weight:600;letter-spacing:.02em}
+
+/* 换行上浮：每次换行新行从下方 0.28em 浮入。
+   用独立的 translate 属性而不是 transform，避免和「聚焦放大」的 scale 互相覆盖 */
+@keyframes rowIn{from{opacity:0;translate:0 .28em}to{opacity:1;translate:0 0}}
+.lyrline.cur{animation:rowIn .26s cubic-bezier(.22,.61,.36,1) both}
+
+/* 打字机：逐字按序闪现，念白与诗朗诵用 */
+.s-type .lyrstack{font-weight:700;letter-spacing:.04em}
+.s-type .lyrline.cur .char{animation:tw .16s steps(2,end) both;animation-delay:calc(var(--i) * 22ms)}
+@keyframes tw{from{opacity:0}to{opacity:1}}
+.s-type .lyrline.cur::after{content:'';display:inline-block;width:.06em;height:1em;
+  background:var(--acc);margin-left:.18em;vertical-align:-.08em;animation:blink 1s steps(1,end) infinite}
+@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+
+/* 霓虹：三层同色外发光，深场和 LED 屏上最亮 */
+.s-neon .lyrstack{font-weight:800;letter-spacing:.03em}
+.s-neon .lyrline.cur{color:#fff;text-shadow:0 0 2px #fff,0 0 8px var(--acc),
+  0 0 18px var(--acc),0 0 34px rgba(59,227,198,.62),0 0 64px rgba(59,227,198,.3)}
+.s-neon .lyrline.ctx{opacity:.34;text-shadow:0 0 12px rgba(255,255,255,.14)}
+
+/* 双色渐变：当前行整行走冷白→青绿，其余行保持实色 */
+.s-duo .lyrstack{font-weight:800}
+.s-duo .lyrline.cur{background:linear-gradient(96deg,#FFFFFF 0%,#C6EBFF 44%,#3BE3C6 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(59,227,198,.24))}
+
+/* 横向跑马：当前行缓慢左右往复，适合动态屏与侧屏 */
+.s-marquee .lyrstack{font-weight:800;letter-spacing:.03em}
+.s-marquee .lyrline.cur{animation:mq 9.5s ease-in-out infinite alternate}
+@keyframes mq{from{translate:-13% 0}to{translate:13% 0}}
+
+/* 透视倾斜：整叠字幕轻微后倾，像贴在斜面屏上 */
+.s-persp .lyrwrap{perspective:1300px}
+.s-persp .lyrstack{transform:rotateX(15deg) scale(1.015);transform-origin:50% 55%}
+
+/* 竖排增强：列间留白、逐列收缩、当前列带纵向光 */
+.s-vertical .lyrstack{letter-spacing:.18em;gap:.34em}
+.s-vertical .lyrline.ctx{opacity:.36;filter:blur(.6px)}
+.s-vertical .lyrline.cur{text-shadow:0 0 20px rgba(255,255,255,.3),0 0 44px rgba(59,227,198,.18),0 3px 24px rgba(0,0,0,.85)}
+
+.char{display:inline-block;white-space:pre}
+
+.outhud{position:absolute;z-index:4;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.55);
+  letter-spacing:.14em;pointer-events:none;display:flex;gap:14px;align-items:center}
+.outhud.tl{top:3.2%;left:3.4%}
+.outhud.br{bottom:3.2%;right:3.4%}
+.outhud .dot{width:5px;height:5px;border-radius:50%;background:var(--acc);
+  box-shadow:0 0 8px var(--acc)}
+.outhud .dim{color:rgba(255,255,255,.2)}
+
+#toast{position:fixed;left:50%;bottom:94px;transform:translateX(-50%) translateY(8px);
+  background:#141A22;border:1px solid var(--line2);border-radius:8px;padding:9px 16px;font-size:12px;
+  color:var(--text);opacity:0;pointer-events:none;transition:.22s;z-index:50;box-shadow:0 12px 34px rgba(0,0,0,.6)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.modal{position:fixed;inset:0;background:rgba(3,4,6,.72);backdrop-filter:blur(6px);z-index:60;
+  display:none;place-items:center}
+.modal.on{display:grid}
+.modal .box{width:520px;max-width:92vw;background:#0E1217;border:1px solid var(--line2);border-radius:12px;
+  padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal .box h4{font-size:14px;font-weight:600;margin-bottom:12px}
+.modal .box textarea{height:180px;resize:vertical;font-family:var(--mono);font-size:11px;line-height:1.6}
+.modal .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+/* ---- 歌单弹窗 ---- */
+.sllist{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.02)}
+.sllist .it{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px}
+.sllist .it:last-child{border-bottom:0}
+.sllist .it.on{background:rgba(94,160,255,.10)}
+.sllist .it .tc{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:92px}
+.sllist .it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sllist .it .ln{font-family:var(--mono);font-size:10px;color:var(--mute)}
+.sllist .it button{padding:3px 8px;font-size:11px}
+
+/* ---- 镜面 / 倒计时 / 临时上屏 ---- */
+.mir-x .lyrwrap{transform:scaleX(-1)}
+.mir-y .lyrwrap{transform:scaleY(-1)}
+
+.cdwrap{position:absolute;inset:0;z-index:3;display:none;place-items:center;pointer-events:none}
+.cdwrap.on{display:grid}
+.cdval{font-family:var(--mono);font-size:min(18vh,168px);font-weight:700;color:#fff;
+  letter-spacing:.04em;text-shadow:0 6px 40px rgba(0,0,0,.85)}
+.cdval.warn{animation:cdblink .62s steps(2,end) infinite}
+@keyframes cdblink{0%{color:#FF5C6C;transform:scale(1.07)}100%{color:#FFFFFF;transform:scale(1)}}
+.cdfull .lyrwrap{opacity:0}
+
+.subwrap{position:absolute;left:0;right:0;bottom:13%;z-index:3;display:none;justify-content:center;
+  pointer-events:none;padding:0 6%}
+.subwrap.on{display:flex}
+.subtxt{font-size:calc(var(--fs,40px) * .62);font-weight:600;color:#FFE9A8;line-height:1.4;
+  text-shadow:0 2px 18px rgba(0,0,0,.9);background:rgba(0,0,0,.30);padding:6px 20px;border-radius:9px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div><b>LiveLyric</b><span>Timecode · Lyrics</span></div>
+    </div>
+
+    <div class="tcblock">
+      <div class="tcbig" id="tcBig">00:00:00:00</div>
+      <div>
+        <div class="tcfps" id="tcFps">25 FPS · NDF</div>
+        <div class="tcstate" style="margin-top:4px">
+          <span class="led" id="ledIn"></span><span id="tcSrcName">内部时钟</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="topright">
+      <span class="chip" id="outState" style="cursor:default"><span class="led"></span>输出未连接</span>
+      <button class="btn" id="btnOutput">打开输出窗口</button>
+      <button class="btn primary" id="btnFullscreen">输出全屏</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <div class="col l">
+      <div class="card">
+        <div class="card-h"><h3>时间码源</h3><span class="tag" id="srcTag">IDLE</span></div>
+        <div class="seg" id="srcSeg" style="margin-bottom:11px">
+          <button data-src="internal" class="on">内部</button>
+          <button data-src="ltc">LTC</button>
+          <button data-src="mtc">MTC</button>
+          <button data-src="ws">网络</button>
+        </div>
+
+        <div id="paneInternal">
+          <div class="row"><span class="lab">音频</span><span class="val" id="audioName" style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未加载</span></div>
+          <input type="file" id="audioFile" accept="audio/*" style="display:none">
+          <div class="grid2">
+            <button class="btn sm" id="btnAudio">载入音频</button>
+            <button class="btn sm" id="btnDemo">载入示例</button>
+          </div>
+          <div class="hint" style="margin-top:9px">以音频播放进度作为时间基准，用于无外部时间码时的排练与试听。</div>
+        </div>
+
+        <div id="paneLtc" class="hide">
+          <div class="row"><span class="lab">输入设备</span></div>
+          <select id="ltcDevice" style="margin-bottom:8px"><option value="">默认输入</option></select>
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnLtcStart">开始解码</button>
+            <button class="btn sm" id="btnLtcStop">停止</button>
+          </div>
+          <div class="row"><span class="lab">信号</span><span class="val" id="ltcLevel">—</span></div>
+          <div class="meter" style="margin-bottom:9px"><i id="ltcMeter"></i></div>
+          <div class="row"><span class="lab">锁定</span><span class="val" id="ltcLock" style="color:var(--mute)">未锁定</span></div>
+          <div class="hint" style="margin-top:9px">QLab 用 Timecode Cue 输出 LTC 到音频接口，本机线路输入接入后开始解码。<em style="color:var(--warn);font-style:normal">LTC 音量很高，切勿送往扬声器。</em></div>
+        </div>
+
+        <div id="paneMtc" class="hide">
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnMidi">连接 MIDI</button>
+            <button class="btn sm" id="btnMidiOff">断开</button>
+          </div>
+          <div class="row"><span class="lab">端口</span><span class="val" id="midiPort" style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未连接</span></div>
+          <div class="row"><span class="lab">收到帧</span><span class="val" id="midiFrames">0</span></div>
+          <div class="hint" style="margin-top:9px">QLab 添加 Timecode Cue（MTC）→ MIDI Patch 指向虚拟端口（macOS IAC Driver / Windows loopMIDI），此处连接同名端口。</div>
+        </div>
+
+        <div id="paneWs" class="hide">
+          <input id="wsUrl" placeholder="ws://127.0.0.1:8080" style="margin-bottom:8px">
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnWs">连接</button>
+            <button class="btn sm" id="btnWsOff">断开</button>
+          </div>
+          <div class="row"><span class="lab">状态</span><span class="val" id="wsState">未连接</span></div>
+          <div class="hint" style="margin-top:9px">接收 JSON：{"tc":"01:00:00:00","fps":25} 或 {"song":12.4}。用于把 OSC 桥接成 WebSocket 后接入。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>对齐与偏移</h3><span class="tag" id="anchorTag">—</span></div>
+        <div class="row"><span class="lab">帧率</span>
+          <div class="seg" style="width:152px" id="fpsSeg">
+            <button data-fps="24">24</button><button data-fps="25" class="on">25</button><button data-fps="30">30</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="lab">歌曲 0s 对应</span><span class="val" id="anchorTx">01:00:00:00</span></div>
+        <div class="grid2" style="margin-top:2px">
+          <button class="btn sm" id="btnAnchorNow">以此帧为 0s</button>
+          <button class="btn sm" id="btnAnchorLine">对齐当前行</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">微调 offset</span><span class="val" id="offsetVal">+0 ms</span></div>
+        <input type="range" id="offset" min="-3000" max="3000" step="10" value="0">
+        <div class="grid3" style="margin-top:2px">
+          <button class="btn sm" data-off="-100">−100</button>
+          <button class="btn sm" data-off="0">归零</button>
+          <button class="btn sm" data-off="100">+100</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">平滑追赶</span><span class="sw on" id="swSmooth"></span></div>
+        <div class="hint">时间码跳变时平滑过渡，避免歌词瞬移。</div>
+
+        <div class="row" style="margin-top:12px"><span class="lab">歌词驱动</span><span class="val" id="tcModeVal">时间轴</span></div>
+        <div class="grid3" id="tcModeSeg">
+          <button class="btn sm on" data-tcmode="timeline">时间轴</button>
+          <button class="btn sm" data-tcmode="clock">均摊</button>
+          <button class="btn sm" data-tcmode="cue">Cue</button>
+        </div>
+        <div class="hint">「时间轴」按歌词自带时间走（有 <span style="color:var(--acc)">[mm:ss]</span> 或逐字码时用它）；「均摊」把行数平铺到整首时长，只给没有时间码的纯文本歌词用。要外部时间码（LTC/MTC/网络）驱动，请到「时间码源」切换，不是这里。</div>
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnCueMark">打点到当前行</button>
+          <button class="btn sm" id="btnSetlist">歌单 · 多首</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>时间码发生器</h3><span class="tag" id="ltcGenTag">WAV</span></div>
+        <div class="row"><span class="lab">起始码</span></div>
+        <input id="genStart" placeholder="01:00:00:00" value="01:00:00:00">
+        <div class="row" style="margin-top:9px"><span class="lab">时长（秒）</span><span class="val" id="genDurVal">180</span></div>
+        <input type="range" id="genDur" min="10" max="600" step="10" value="180">
+        <div class="row"><span class="lab">输出电平</span><span class="val" id="genLvlVal">50%</span></div>
+        <input type="range" id="genLvl" min="5" max="100" step="5" value="50">
+        <div class="grid2" style="margin-top:4px">
+          <button class="btn sm" id="btnGenLtc">生成并下载</button>
+          <button class="btn sm" id="btnGenCopy">复制链接</button>
+        </div>
+        <div class="hint" style="margin-top:8px">按当前帧率编码，与节目单对齐后可喂给调音台 / 录像机。<em style="color:var(--warn);font-style:normal">不要用扬声器播放这段音频。</em></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>本首偏移</h3><span class="tag" id="psTag">+0 ms</span></div>
+        <div class="row"><span class="lab">曲目</span><span class="val" id="psTitle" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="row" style="margin-top:9px"><span class="lab">整体平移（秒）</span></div>
+        <input id="psSec" placeholder="例如 2.5 或 -1.2">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnPsApply">应用</button>
+          <button class="btn sm" id="btnPsRestore">恢复</button>
+        </div>
+        <div class="hint" style="margin-top:8px">只作用于当前这一首，与上面的全局微调叠加；「恢复」一次性退回本首最初的码。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>画面</h3></div>
+        <div class="row"><span class="lab">比例</span><span class="val" id="ratioVal">16:9</span></div>
+        <div class="grid3" style="margin-bottom:10px" id="ratioSeg">
+          <button class="btn sm" data-ratio="16:9">16:9</button>
+          <button class="btn sm" data-ratio="9:16">9:16</button>
+          <button class="btn sm" data-ratio="1:1">1:1</button>
+          <button class="btn sm" data-ratio="4:3">4:3</button>
+          <button class="btn sm" data-ratio="21:9">21:9</button>
+          <button class="btn sm" data-ratio="fit">自适应</button>
+        </div>
+        <div class="row"><span class="lab">显示时间码</span><span class="sw" id="swShowTc"></span></div>
+        <div class="row"><span class="lab">上下行残影</span><span class="sw on" id="swCap"></span></div>
+        <div class="row" style="margin-top:12px"><span class="lab">镜面</span><span class="val" id="mirrorVal">关闭</span></div>
+        <div class="seg" id="mirrorSeg">
+          <button data-mirror="off" class="on">关闭</button>
+          <button data-mirror="x">左右</button>
+          <button data-mirror="y">上下</button>
+        </div>
+        <div class="hint" style="margin-top:8px">只翻转歌词画面，HUD 与控制台不动。带反光镜的提词器用左右。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>现场工具</h3><span class="tag" id="cdTag">IDLE</span></div>
+        <div class="row"><span class="lab">倒计时（分钟）</span></div>
+        <input id="cdMin" placeholder="例如 5" inputmode="decimal">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnCdStart">开始倒计时</button>
+          <button class="btn sm" id="btnCdStop">停止 / 隐藏</button>
+        </div>
+        <div class="row" style="margin-top:9px"><span class="lab">全屏大字</span><span class="sw" id="swCdFull"></span></div>
+        <div style="border-top:1px solid var(--line);margin:12px 0 10px"></div>
+        <div class="row"><span class="lab">临时上屏</span></div>
+        <input id="subText" placeholder="例如：下一首《夜空中最亮的星》">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnSubShow">上屏</button>
+          <button class="btn sm" id="btnSubHide">清除</button>
+        </div>
+        <div class="hint" style="margin-top:8px">临时文字压在歌词上方，不影响当前歌词页；倒计时最后 10 秒红白闪烁。</div>
+      </div>
+    </div>
+
+    <div class="col c">
+      <div class="lyricbar">
+        <div>
+          <div class="title" id="songTitle">未载入歌词</div>
+          <div class="sub" id="songSub">0 行 · LRC / TTML / SRT / TXT</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn sm" id="btnImport">导入文件</button>
+        <button class="btn sm" id="btnPaste">粘贴文本</button>
+        <button class="btn sm" id="btnOnline">在线获取</button>
+        <input type="file" id="lyricFile" accept=".lrc,.txt,.ttml,.xml,.srt,.ass,.json" style="display:none">
+      </div>
+      <div class="lyriclist" id="lyricList">
+        <div class="empty">导入歌词后在此编辑时间轴<br>
+          <span style="font-family:var(--mono);font-size:11px">双击时间码可手动改写 · 支持逐字歌词</span></div>
+      </div>
+    </div>
+
+    <div class="col r">
+      <div class="card">
+        <div class="card-h"><h3>歌词样式</h3><span class="tag" id="styleTag">CLASSIC</span></div>
+        <div class="grid2" id="styleGrid">
+          <button class="chip on" data-style="classic">经典居中</button>
+          <button class="chip" data-style="karaoke">逐字填充</button>
+          <button class="chip" data-style="glow">柔光</button>
+          <button class="chip" data-style="bounce">逐字弹入</button>
+          <button class="chip" data-style="vertical">竖排</button>
+          <button class="chip" data-style="minimal">极简双行</button>
+          <button class="chip" data-style="type">打字机</button>
+          <button class="chip" data-style="neon">霓虹</button>
+          <button class="chip" data-style="duo">双色渐变</button>
+          <button class="chip" data-style="marquee">横向跑马</button>
+          <button class="chip" data-style="persp">透视倾斜</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">组合预设</span><span class="tag" id="presetTag">—</span></div>
+        <div class="grid2" id="presetSeg">
+          <button class="btn sm" data-preset="night">夜场霓虹</button>
+          <button class="btn sm" data-preset="mono">念白打字</button>
+          <button class="btn sm" data-preset="launch">发布会渐变</button>
+          <button class="btn sm" data-preset="guofeng">国风竖排</button>
+        </div>
+        <div class="grid2" style="margin-top:6px">
+          <button class="btn sm" id="btnSavePreset">存当前组合</button>
+          <button class="btn sm" id="btnMinePreset">用我的组合</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">字号</span><span class="val" id="fsVal">100%</span></div>
+        <input type="range" id="fontSize" min="60" max="170" value="100">
+        <div class="row"><span class="lab">行距</span><span class="val" id="lhVal">1.50</span></div>
+        <input type="range" id="lineHeight" min="100" max="220" value="150">
+        <div class="row"><span class="lab">字距</span><span class="val" id="trVal">1.00</span></div>
+        <input type="range" id="tracking" min="60" max="250" step="5" value="100">
+        <div class="row" style="margin-top:12px"><span class="lab">边缘渐隐</span><span class="sw on" id="swFade"></span></div>
+        <div class="row"><span class="lab">聚焦放大</span><span class="sw" id="swFocus"></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>描边 / 阴影</h3><span class="tag" id="fxTag">OFF</span></div>
+        <div class="row"><span class="lab">描边宽度</span><span class="val" id="skVal">0 px</span></div>
+        <input type="range" id="strokeW" min="0" max="10" step="1" value="0">
+        <div class="row" style="margin-top:9px"><span class="lab">描边颜色</span>
+          <input type="color" id="strokeC" value="#000000" style="width:46px;padding:2px;height:24px">
+        </div>
+        <div class="row" style="margin-top:11px"><span class="lab">阴影模糊</span><span class="val" id="shVal">0 px</span></div>
+        <input type="range" id="shadowB" min="0" max="40" step="2" value="0">
+        <div class="row" style="margin-top:9px"><span class="lab">阴影颜色</span>
+          <input type="color" id="shadowC" value="#000000" style="width:46px;padding:2px;height:24px">
+        </div>
+        <div class="hint" style="margin-top:9px">投影幕布、强光或有景深的舞台，描边比阴影更可靠；逐字填充样式下阴影对透明文字无效。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>背景</h3><span class="tag" id="bgTag">NONE</span></div>
+        <div class="grid2" id="bgGrid">
+          <button class="chip on" data-bg="none">纯黑</button>
+          <button class="chip" data-bg="grad">呼吸渐变</button>
+          <button class="chip" data-bg="aurora">极光流</button>
+          <button class="chip" data-bg="dust">浮尘粒子</button>
+          <button class="chip" data-bg="wave">声波线</button>
+          <button class="chip" data-bg="media">自定义图/视频</button>
+        </div>
+        <input type="file" id="bgFile" accept="image/*,video/*" style="display:none">
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>输出监看</h3><span class="tag" id="monTag">OFFLINE</span></div>
+        <div class="preview" id="miniPreview">
+          <div class="ptext" id="miniText" style="font-size:15px">预览</div>
+        </div>
+        <div class="hint" style="margin-top:9px">输出窗口独立渲染，可拖到扩展显示器后按 F11 或点击「输出全屏」。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>工程</h3><span class="tag" id="docTag">LOCAL</span></div>
+        <div class="grid2">
+          <button class="btn sm" id="btnExport">导出工程</button>
+          <button class="btn sm" id="btnImportProj">导入工程</button>
+        </div>
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnEmbedTc">镶嵌时间码</button>
+          <button class="btn sm" id="btnCopyTc">复制</button>
+        </div>
+        <input type="file" id="projFile" accept=".json,application/json" style="display:none">
+        <div class="hint" style="margin-top:9px">导出包含歌词、样式、歌单与全部时间码设置，换机或换浏览器后导入即可还原。</div>
+        <div class="hint" style="margin-top:6px">「镶嵌时间码」把这份歌词的相对时间轴按当前 <span style="color:var(--acc)">anchor</span> 转成 <span style="color:var(--acc)">⌚时:分:秒:帧</span> 库文本，导出后可直接给 QLab / 外部提词器导入。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="tleft">
+      <span class="led" id="ledRun"></span>
+      <div style="min-width:0">
+        <div style="font-size:11px;color:var(--dim)" id="runState">待命</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:2px" id="cueInfo">—</div>
+      </div>
+      <div class="progress" id="progressWrap"><i id="progFill"></i><b id="progKnob" style="left:0"></b></div>
+    </div>
+
+    <div class="tmid">
+      <button class="tbtn" id="btnPrev" title="上一行 (←)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v16M18 4 8 12l10 8z"/></svg></button>
+      <button class="go" id="btnGo" title="GO / 暂停 (Space)"><svg class="ico-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg><svg class="ico-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" stroke="currentColor" stroke-width="2.6" fill="none"/></svg></button>
+      <button class="tbtn" id="btnNext" title="下一行 (→)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 4v16M6 4l10 8-10 8z"/></svg></button>
+    </div>
+
+    <div class="tright">
+      <button class="tbtn" data-off="-100" title="全局微调 -100ms" style="width:26px;height:26px;border-radius:7px;font:600 12px var(--mono)">−</button>
+      <span class="val" id="offsetMini" style="min-width:58px;text-align:center">+0 ms</span>
+      <button class="tbtn" data-off="100" title="全局微调 +100ms" style="width:26px;height:26px;border-radius:7px;font:600 12px var(--mono)">+</button>
+      <button class="btn sm" id="btnClear">清屏</button>
+      <button class="btn sm" id="btnPrevCue">退一行</button>
+      <span class="val" id="posVal" style="min-width:74px;text-align:right">0.00s</span>
+    </div>
+  </div>
+</div>
+
+<div class="out" id="out">
+  <div class="stage" id="stage">
+    <div class="frame" id="frame">
+      <div class="bglayer" id="bgLayer"></div>
+      <div class="bg-scrim" id="bgScrim"></div>
+      <div class="lyrwrap"><div class="lyrstack" id="stack"></div></div>
+      <div class="cdwrap" id="cdWrap"><div class="cdval" id="cdVal">05:00</div></div>
+      <div class="subwrap" id="subWrap"><div class="subtxt" id="subTxt"></div></div>
+      <div class="outhud tl" id="hudTL"><span class="dot"></span><span id="hudSrc">INTERNAL</span><span class="dim">|</span><span id="hudState">STANDBY</span></div>
+      <div class="outhud br" id="hudBR"><span id="hudTc">00:00:00:00</span><span class="dim">|</span><span id="hudFps">25FPS</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalPaste">
+  <div class="box">
+    <h4>粘贴歌词</h4>
+    <textarea id="pasteArea" placeholder="[00:12.31]第一句&#10;[00:16.80]第二句&#10;&#10;支持 LRC / 增强 LRC(逐字) / TTML / SRT / 纯文本"></textarea>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalPaste">取消</button>
+      <button class="btn primary" id="btnPasteOk">载入</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalOnline">
+  <div class="box">
+    <h4>在线获取歌词</h4>
+    <div class="row" style="margin-bottom:12px"><span class="lab">服务</span>
+      <span id="olState" style="font-size:12px;color:#8b96a8">检测中…</span>
+    </div>
+    <div class="row"><span class="lab">来源</span>
+      <div class="seg" style="width:170px" id="olSrc">
+        <button data-ol="netease" class="on">网易云</button>
+        <button data-ol="qq">QQ音乐</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="lab">歌名 / 分享链接 / 歌曲 ID</span></div>
+    <input id="olInput" placeholder="直接填歌名最快，例如：晴天">
+    <div class="row" style="margin-top:10px"><span class="lab">自定义接口（可选）</span></div>
+    <input id="olApi" placeholder="留空即使用内置服务">
+    <div class="hint" style="margin-top:8px">
+      内置服务随「启动 LiveLyric.bat」一起运行，同源直连，无需填地址。<br>
+      直接打开 html 文件时浏览器无法直连官方接口，可另填代理地址，`{kw}` / `{id}` 作占位。
+    </div>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalOnline">取消</button>
+      <button class="btn primary" id="btnOnlineOk">获取</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalSetlist">
+  <div class="box" style="width:min(560px,86vw)">
+    <h4>歌单 · 多首时间码</h4>
+    <div class="hint" style="margin-bottom:10px">
+      每首绑定一个入点时间码，时间码进入该区间就自动切歌。切歌用歌单里存的歌词快照，不需要联网。
+    </div>
+    <div id="slList" class="sllist">
+      <div class="empty" style="padding:18px 0;text-align:center;color:#6f7a8c;font-size:12px">还没有曲目</div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="lab">响应方式</span><span class="val" id="slModeVal">独立</span></div>
+    <div class="seg" id="slModeSeg">
+      <button data-slmode="indep" class="on">独立</button>
+      <button data-slmode="chain">连续</button>
+    </div>
+    <div class="row" style="margin-top:9px"><span class="lab">每首间隔（分钟）</span>
+      <input id="slGap" type="number" min="0" max="30" value="0" style="width:78px;padding:5px 8px">
+    </div>
+    <div class="hint" style="margin-top:6px">连续模式按列表顺序累计前一首总时长（含间隔）推后本首起点；歌词内的码本身不变。</div>
+    <div class="row" style="margin-top:10px"><span class="lab">入点时间码</span></div>
+    <input id="slTc" placeholder="01:00:00:00">
+    <div class="grid2" style="margin-top:8px">
+      <button class="btn sm" id="btnSlFromNow">用当前时间码</button>
+      <button class="btn sm" id="btnSlAdd">把当前歌词加入</button>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      入点留空则自动接在上一首后面。已加曲目可点「定位」把时间码跳过去预览。
+    </div>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalSetlist">关闭</button>
+      <button class="btn primary" id="btnSlClear">清空歌单</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   LiveLyric — 实时歌词同步系统
+   一个文件两副面孔：控制台 / 投屏输出（?mode=output）
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const QS = new URLSearchParams(location.search);
+const IS_OUT = QS.get('mode') === 'output';
+const pad2 = n => String(n).padStart(2, '0');
+
+/* ---------- 时间码 ---------- */
+function secToTc(sec, fps) {
+  if (!isFinite(sec)) sec = 0;
+  const neg = sec < 0;
+  let tf = Math.round(Math.abs(sec) * fps);
+  const ff = tf % fps; tf = Math.floor(tf / fps);
+  const ss = tf % 60; tf = Math.floor(tf / 60);
+  const mm = tf % 60; tf = Math.floor(tf / 60);
+  const hh = tf % 24;
+  return (neg ? '-' : '') + pad2(hh) + ':' + pad2(mm) + ':' + pad2(ss) + ':' + pad2(ff);
+}
+function parseTimeStr(s) {
+  if (s == null) return 0;
+  s = String(s).trim();
+  if (!s) return 0;
+  if (/ms$/.test(s)) return parseFloat(s) / 1000;
+  if (/s$/.test(s)) return parseFloat(s);
+  const p = s.split(':').map(Number);
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  if (p.length === 2) return p[0] * 60 + p[1];
+  return parseFloat(s) || 0;
+}
+function tcToSec(tc, fps) {
+  const p = String(tc).replace('-', '').split(':').map(Number);
+  if (p.length === 4) return p[0] * 3600 + p[1] * 60 + p[2] + p[3] / fps;
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  return parseFloat(tc) || 0;
+}
+function msToSec(s) { const v = parseFloat(s); return isFinite(v) ? v / 1000 : 0; }
+
+/* ---------- 状态 ---------- */
+const APP_VER = '1.4.10';
+const DEF_STATE = {
+  style: 'classic', bg: 'none', fs: 100, lh: 150, ratio: '16:9',
+  fps: 25, offset: 0, smooth: true, showTc: false, cap: true,
+  anchor: 3600, src: 'internal', wsUrl: 'ws://127.0.0.1:8080', api: '',
+  /* 歌词驱动方式：
+     timeline — 用歌词自带时间轴（默认）
+     clock    — 忽略歌词时间轴，时间码线性映射到整首时长
+     cue      — 每行绑一个绝对时间码，由 cue 表决定当前行 */
+  tcMode: 'timeline',
+  /* 舞台可读性（1.4.0）
+     tracking 字距倍数 100=原样；strokeW 描边像素；shadowB 阴影模糊 */
+  tracking: 100, strokeW: 0, strokeC: '#000000', shadowB: 0, shadowC: '#000000',
+  /* 视觉增强（1.4.5）：边缘渐隐让首尾行淡出；聚焦放大让当前行比其他行略大 */
+  fade: true, focus: false,
+  /* 组合预设：一套样式 + 参数存成一槽，现场一键切换（1.4.7） */
+  presetMine: null,
+  mirror: 'off',
+  /* 现场工具：倒计时与临时上屏 */
+  cdFull: false, cdEndAt: 0, cdTotal: 0, subText: '', subOn: false,
+  /* 本首偏移：按曲目名为键，切歌自动生效；base 存「应用前」的值供一次性恢复 */
+  perSongOff: {}, perSongBase: {},
+  /* 歌单响应方式：indep 各首独立；chain 按列表顺序累计时长 + 间隔 */
+  setlistMode: 'indep', setlistGap: 0,
+  /* 多首：每首带自己的入出点与基准，时间码落进区间就切歌 */
+  setlist: [],
+  songIdx: 0
+};
+let S = Object.assign({}, DEF_STATE);
+let LINES = [];
+let META = { title: '', artist: '', source: '' };
+const LS_STATE = 'livelyric.state.v1';
+const LS_BUS = 'livelyric.bus.v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(LS_STATE, JSON.stringify({
+      S, LINES, META, savedAt: Date.now()
+    }));
+  } catch (e) { console.warn('save fail', e); }
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_STATE);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (d.S) {
+      S = Object.assign({}, DEF_STATE, d.S);
+      /* 存档里可能残留超范围的 offset，读出来先夹紧，否则整首歌词会整体错位 */
+      const bad = S.offset;
+      S.offset = clampOffset(S.offset);
+      if (S.offset !== bad) saveState();   // 直接把脏值修回存档，下次不必再夹
+    }
+    if (Array.isArray(d.LINES)) LINES = d.LINES;
+    if (d.META) META = Object.assign({ title: '', artist: '', source: '' }, d.META);
+    return LINES.length > 0;
+  } catch (e) { return false; }
+}
+
+/* ---------- 跨窗口总线 ---------- */
+const Bus = {
+  ch: null, seen: {},
+  init() {
+    try { this.ch = new BroadcastChannel('livelyric'); } catch (e) { this.ch = null; }
+  },
+  key(type) { return LS_BUS + '.' + type; },
+  send(type, payload) {
+    const msg = Object.assign({ type: type, t: Date.now() }, payload || {});
+    let raw = '';
+    try { raw = JSON.stringify(msg); } catch (e) { return; }
+    if (this.ch) { try { this.ch.postMessage(msg); } catch (e) { } }
+    try { localStorage.setItem(this.key(type), raw); } catch (e) { }
+  },
+  listen(cb) {
+    if (this.ch) {
+      this.ch.onmessage = ev => { if (ev.data && ev.data.type) cb(ev.data); };
+    }
+    window.addEventListener('storage', ev => {
+      if (ev.key && ev.key.indexOf(LS_BUS) === 0 && ev.newValue) {
+        try {
+          const m = JSON.parse(ev.newValue);
+          if (m && m.type) { this.seen[ev.key] = ev.newValue; cb(m); }
+        } catch (e) { }
+      }
+    });
+    const self = this;
+    setInterval(() => {
+      let n = 0;
+      try { n = localStorage.length; } catch (e) { return; }
+      for (let i = 0; i < n; i++) {
+        let k = null;
+        try { k = localStorage.key(i); } catch (e) { continue; }
+        if (!k || k.indexOf(LS_BUS + '.') !== 0) continue;
+        let raw = null;
+        try { raw = localStorage.getItem(k); } catch (e) { continue; }
+        if (!raw || self.seen[k] === raw) continue;
+        self.seen[k] = raw;
+        try {
+          const m = JSON.parse(raw);
+          if (m && m.type) cb(m);
+        } catch (e) { }
+      }
+    }, 160);
+  }
+};
+Bus.init();
+
+/* ---------- 歌词解析 ---------- */
+function normLine(t) {
+  return String(t).replace(/\u200b/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function parseLyric(raw) {
+  raw = String(raw || '').replace(/\r\n?/g, '\n').trim();
+  if (!raw) return [];
+  /* 4ROCK / 金老斯 歌词库：⌚ 标记行，或整份带 songs 的工程 JSON */
+  if (/^[⌚⏱]/m.test(raw)) return parseTcLib(raw);
+  if (/^\s*\{/.test(raw) && /"songs"\s*:/.test(raw)) return parseTcLib(raw);
+  if (/<tt[\s>]/.test(raw) || /<p\s+[^>]*begin=/i.test(raw)) return parseTTML(raw);
+  if (/\n\s*\d+\s*\n\s*\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}\s*-->/m.test('\n' + raw)) return parseSRT(raw);
+  if (/\[[0-9]{1,2}:[0-9]{2}/.test(raw) || /<\d{1,2}:\d{2}/.test(raw)) return parseLRC(raw);
+  return parsePlain(raw);
+}
+
+/* 外部歌词库（⌚时:分:秒:帧 页标记）
+   ⌚ 行标记紧随其后的一「页」；同页多行均分到下一页之前的时长，
+   这样逐行显示时不会挤成一团，也不会和下一页重叠。 */
+let _libTitle = '';
+function parseTcLib(raw) {
+  let text = String(raw || '');
+  let libTitle = '';
+  if (/^\s*\{/.test(text)) {
+    try {
+      const j = JSON.parse(text);
+      const songs = Array.isArray(j.songs) ? j.songs : null;
+      const pick = songs ? (songs.find(s => s.id === j.currentId) || songs[0]) : j;
+      if (pick) {
+        if (pick.title) libTitle = String(pick.title);
+        text = String(pick.raw || pick.text || pick.lyric || text);
+      }
+      if (songs && songs.length > 1) libTitle = libTitle + '（库内 ' + songs.length + ' 首）';
+    } catch (e) { /* 解析失败就按纯文本走 */ }
+  }
+  _libTitle = libTitle;
+  if (libTitle) META.title = libTitle;
+
+  const rows = text.replace(/\r\n?/g, '\n').split('\n');
+  const pages = [];
+  let cur = null;
+  const re = /^[⌚⏱]\s*(\d{1,2}):(\d{2}):(\d{2})[:;.,](\d{1,3})$/;
+  for (let i = 0; i < rows.length; i++) {
+    const line = rows[i].trim();
+    if (!line) continue;
+    if (line === '{' || line === '}') continue;      // 强制分组标记不参与显示
+    const m = line.match(re);
+    if (m) {
+      const fps = S.fps || 25;
+      const t = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / fps;
+      cur = { t: t, rows: [] };
+      pages.push(cur);
+      continue;
+    }
+    if (!cur) { cur = { t: 0, rows: [] }; pages.push(cur); }
+    cur.rows.push(line);
+  }
+  if (!pages.length) return [];
+
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    const p = pages[i];
+    const next = i + 1 < pages.length ? pages[i + 1].t : p.t + Math.max(2.5, p.rows.length * 2.5);
+    const span = Math.max(0.4, next - p.t);
+    const n = Math.max(1, p.rows.length);
+    for (let k = 0; k < p.rows.length; k++) {
+      out.push({ t: p.t + span * (k / n), text: p.rows[k], dur: Math.max(0.3, span / n) });
+    }
+  }
+  /* 整小时基准归零：⌚ 库通常写成 01:00:00:00 起的绝对码（QLab / LTC 习惯），
+     而歌词内部一律按歌曲起点相对计秒。不归零的话导入后整首会差一小时。 */
+  if (out.length) {
+    const base = Math.floor(out[0].t / 3600) * 3600;
+    if (base > 0) for (let i = 0; i < out.length; i++) out[i].t = Math.max(0, out[i].t - base);
+  }
+  return dedupeSort(out);
+}
+
+/* 把「相对时间轴」的歌词镶成带绝对时间码的 ⌚ 库文本。
+   每行一个 ⌚ 标记，单行成页，解析回来 t 与原文一一对应（可无损往返）。
+   逐字（words）在这个格式里没有位置，只有行级时间。 */
+function buildTcLib(lines, anchorSec, fps) {
+  const a = lines || LINES;
+  const f = fps || S.fps || 25;
+  const a0 = Math.max(0, Number(anchorSec) || 0);
+  const rows = [];
+  for (let i = 0; i < a.length; i++) {
+    const tx = String(a[i].text || '').replace(/[\r\n]+/g, ' ').trim();
+    if (!tx || /^[⌚⏱]/.test(tx)) continue;
+    rows.push('⌚' + secToTc((a[i].t || 0) + a0, f));
+    rows.push(tx);
+  }
+  return rows.length ? rows.join('\n') + '\n' : '';
+}
+
+function parseLRC(raw) {
+  const out = [];
+  let offset = 0;
+  const lines = raw.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    const om = line.match(/^\[(?:offset|OFFSET)\s*:\s*([+-]?\d+)\s*\]/);
+    if (om) { offset = parseInt(om[1], 10) / 1000; continue; }
+    if (/^\[(ti|ar|al|by|re|ve|length)\s*:/i.test(line)) {
+      const tm = line.match(/^\[ti\s*:\s*(.*?)\]/i);
+      if (tm && !META.title) META.title = tm[1].trim();
+      const am = line.match(/^\[ar\s*:\s*(.*?)\]/i);
+      if (am && !META.artist) META.artist = am[1].trim();
+      continue;
+    }
+    const tags = [];
+    let rest = line;
+    let m;
+    const re = /^\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/;
+    while ((m = re.exec(rest))) {
+      const frac = m[3] ? parseFloat('0.' + m[3].padEnd(3, '0').slice(0, 3)) : 0;
+      tags.push(parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + frac);
+      rest = rest.slice(m[0].length);
+    }
+    if (!tags.length) continue;
+    const words = parseWordTags(rest, tags[0]);
+    const text = normLine(rest.replace(/<[^>]*>/g, ''));
+    if (!text) continue;
+    for (let k = 0; k < tags.length; k++) {
+      out.push({ t: tags[k] + offset, text: text, words: words ? words.words : null, wbase: words ? words.base : tags[k] + offset });
+    }
+  }
+  return dedupeSort(out);
+}
+
+/* 增强 LRC：<00:01.20>字 —— 标签表示该段起点 */
+function parseWordTags(rest, lineStart) {
+  if (!/<\d{1,2}:\d{2}/.test(rest)) return null;
+  const segs = [];
+  let curT = lineStart, buf = '';
+  let i = 0;
+  const re = /<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>/;
+  while (i < rest.length) {
+    const sub = rest.slice(i);
+    const m = re.exec(sub);
+    if (m && m.index === 0) {
+      if (buf) segs.push({ t: curT, text: buf });
+      const frac = m[3] ? parseFloat('0.' + m[3].padEnd(3, '0').slice(0, 3)) : 0;
+      curT = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + frac;
+      buf = '';
+      i += m[0].length;
+    } else if (m && sub.slice(0, m.index).indexOf('<') < 0) {
+      buf += sub.slice(0, m.index);
+      i += m.index;
+    } else {
+      buf += sub[0];
+      i += 1;
+    }
+  }
+  if (buf) segs.push({ t: curT, text: buf });
+  const words = [];
+  let base = null;
+  for (let s = 0; s < segs.length; s++) {
+    const seg = segs[s];
+    const next = s + 1 < segs.length ? segs[s + 1].t : seg.t + Math.max(0.25, seg.text.length * 0.18);
+    if (base === null) base = seg.t;
+    const chars = Array.from(seg.text);
+    const dur = Math.max(0.02, next - seg.t);
+    for (let c = 0; c < chars.length; c++) {
+      words.push({ c: chars[c], t: seg.t + dur * (c / chars.length), d: dur / chars.length });
+    }
+  }
+  return { words: words, base: base };
+}
+
+function parseTTML(raw) {
+  const out = [];
+  try {
+    const doc = new DOMParser().parseFromString(raw, 'text/xml');
+    const ps = doc.querySelectorAll('p');
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      const bt = p.getAttribute('begin');
+      const et = p.getAttribute('end');
+      if (!bt) continue;
+      const t = parseTimeStr(bt);
+      const dur = et ? Math.max(0, parseTimeStr(et) - t) : 0;
+      const spans = p.querySelectorAll('span');
+      let words = null;
+      if (spans.length > 1) {
+        words = [];
+        for (let s = 0; s < spans.length; s++) {
+          const sp = spans[s];
+          const st = sp.getAttribute('begin') ? parseTimeStr(sp.getAttribute('begin')) : t;
+          const se = sp.getAttribute('end') ? parseTimeStr(sp.getAttribute('end')) : st + 0.2;
+          const ch = Array.from(normLine(sp.textContent)).filter(x => x !== ' ');
+          const d = Math.max(0.02, se - st);
+          for (let c = 0; c < ch.length; c++) {
+            words.push({ c: ch[c], t: st + d * (c / ch.length), d: d / ch.length });
+          }
+        }
+      }
+      let text = normLine(p.textContent);
+      if (!text) continue;
+      // 去掉空行与过短的气口
+      out.push({ t: t, text: text, words: words });
+    }
+  } catch (e) { console.warn('TTML parse', e); }
+  return dedupeSort(out);
+}
+
+function parseSRT(raw) {
+  const out = [];
+  const blocks = raw.split(/\n{2,}/);
+  const re = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/;
+  for (const b of blocks) {
+    const m = b.match(re);
+    if (!m) continue;
+    const st = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + msToSec(m[4]);
+    const et = (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + msToSec(m[8]);
+    const text = normLine(b.split('\n').filter(l => !/^\d+$/.test(l.trim()) && !re.test(l)).join(' '));
+    if (!text) continue;
+    out.push({ t: st, text: text, dur: Math.max(0.3, et - st) });
+  }
+  return dedupeSort(out);
+}
+
+function parsePlain(raw) {
+  const lines = raw.split('\n').map(normLine).filter(Boolean);
+  if (!lines.length) return [];
+  const total = Math.max(60, lines.reduce((a, l) => a + l.length, 0) * 0.34);
+  const weights = lines.map(l => Math.max(3, l.length));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    out.push({ t: total * (acc / sum), text: lines[i] });
+    acc += weights[i];
+  }
+  return out;
+}
+
+function dedupeSort(arr) {
+  const seen = new Set();
+  const res = [];
+  for (const l of arr) {
+    const key = l.t.toFixed(3) + '|' + l.text;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    res.push(l);
+  }
+  res.sort((a, b) => a.t - b.t);
+  return res.map((l, i) => {
+    if (!l.dur) {
+      const nxt = res[i + 1];
+      l.dur = nxt ? Math.max(0.25, nxt.t - l.t) : Math.max(1, l.text.length * 0.3);
+    }
+    return l;
+  });
+}
+
+/* 当前行索引
+   timeline：按歌词时间轴
+   clock   ：不看时间轴，把当前曲目时长线性摊到各行（无时间轴时的兜底）
+   cue     ：按每行绑定的绝对时间码（line.cue），没有 cue 的行跳过 */
+let _cueRows = null, _cueSrc = null, _cueLen = -1;
+function cueTable(arr) {
+  if (_cueRows && _cueSrc === arr && _cueLen === arr.length) return _cueRows;
+  const t = [];
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i].cue;
+    if (typeof c === 'number' && isFinite(c)) t.push({ c: c, i: i });
+  }
+  t.sort((a, b) => a.c - b.c);
+  _cueRows = t; _cueSrc = arr; _cueLen = arr.length;
+  return t;
+}
+function indexAt(time, lines) {
+  const arr = lines || LINES;
+  if (!arr.length) return -1;
+
+  if (S.tcMode === 'cue') {
+    const t = cueTable(arr);
+    if (t.length) {
+      if (time < t[0].c) return -1;
+      let lo = 0, hi = t.length - 1, ans = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (t[mid].c <= time) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+      }
+      return t[ans].i;
+    }
+    /* 没有任何 cue 时退回时间轴，不至于整屏空着 */
+  }
+
+  /* 「均摊」只给没有时间码的纯文本歌词用：那些行本来没有真实时间，
+     只能按行序平铺。歌词自带时间轴时摊分必然整首错位，直接落到下面的时间轴二分。 */
+  if (S.tcMode === 'clock' && !linesHaveTimeline(arr)) {
+    /* 线性摊分：首行时间 → 末行时间 + 末行估算时长 */
+    const first = arr[0].t;
+    const last = arr[arr.length - 1].t;
+    const span = Math.max(0.5, last - first + 2.5);
+    const n = arr.length;
+    if (time <= first) return -1;
+    const rel = Math.min(1, (time - first) / span);
+    const idx = Math.floor(rel * n);
+    return Math.max(0, Math.min(n - 1, idx));
+  }
+
+  if (time < arr[0].t) return -1;
+  let lo = 0, hi = arr.length - 1, ans = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid].t <= time) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+  }
+  return ans;
+}
+
+/* 这份歌词是否自带真实时间轴。
+   判据：至少 3 行、行间隔全部为正且间隔种类足够多。
+   无时间码的纯文本会被 parseLyric 按相等间隔铺开，间隔种类只剩 1~2 种，
+   用「时间码均摊」是合理的；而真实歌词的间隔天然参差，均摊必然整段错位。 */
+function linesHaveTimeline(arr) {
+  const a = arr || LINES;
+  if (!a || a.length < 3) return false;
+  const gaps = [];
+  for (let i = 1; i < a.length; i++) {
+    const g = +(a[i].t - a[i - 1].t).toFixed(3);
+    if (!(g > 0)) return false;
+    gaps.push(g);
+  }
+  const uniq = new Set(gaps);
+  return uniq.size >= 3;
+}
+
+/* 行索引 → 该行沿用多久（给进度条与逐字用） */
+function lineSpan(i, arr) {
+  const a = arr || LINES;
+  if (i < 0 || i >= a.length) return 2;
+  if (i + 1 < a.length) {
+    const d = a[i + 1].t - a[i].t;
+    return d > 0.05 ? d : 2;
+  }
+  return 2.5;
+}
+
+/* ---------- 歌单的有效入点 ----------
+   独立：各首用自己填的入点。
+   连续：按列表顺序累计前一首的总时长 + 间隔，依次推后起点；
+        歌词里的时间码本身不变，只是响应的基准变了。 */
+let _slotCache = null, _slotSig = '';
+function entryDur(e) {
+  const ls = (e && e.lines) || [];
+  if (!ls.length) return 300;
+  const last = ls[ls.length - 1];
+  return Math.max(30, (last.t || 0) + (last.dur || 2.5));
+}
+function slotList() {
+  const list = S.setlist || [];
+  if (!list.length) return list;
+  const sig = list.length + '|' + S.setlistMode + '|' + S.setlistGap + '|' +
+    list.map(e => (e.tcIn || 0) + ':' + entryDur(e)).join(',');
+  if (_slotCache && _slotSig === sig) return _slotCache;
+  let out;
+  if (S.setlistMode !== 'chain') {
+    out = list;
+  } else {
+    const gap = Math.max(0, Math.min(30, Number(S.setlistGap) || 0)) * 60;
+    out = [];
+    let acc = list[0].tcIn || 0;
+    for (let i = 0; i < list.length; i++) {
+      if (i > 0) acc = acc + entryDur(list[i - 1]) + gap;
+      out.push(Object.assign({}, list[i], { tcIn: acc, anchor: acc }));
+    }
+  }
+  _slotCache = out;
+  _slotSig = sig;
+  return out;
+}
+
+/* ---------- 本首偏移（与全局 offset 叠加） ---------- */
+const SONG_OFF_LIMIT = 90000;
+function clampSongOff(v) {
+  v = Number(v);
+  if (!isFinite(v)) return 0;
+  v = Math.round(v);
+  return Math.max(-SONG_OFF_LIMIT, Math.min(SONG_OFF_LIMIT, v));
+}
+function songKey() {
+  const t = (META && META.title ? String(META.title) : '').trim();
+  return t || ('__song' + (S.songIdx || 0));
+}
+function perSongOffMs() {
+  const m = S.perSongOff || {};
+  return clampSongOff(m[songKey()]);
+}
+
+/* =====================================================================
+   时钟引擎
+   ===================================================================== */
+const Clock = {
+  src: 'internal',
+  running: false,
+  tcSec: 0,
+  locked: false,
+  lastExt: 0,
+  extSong: 0,
+  extStamp: 0,
+  freewheel: 0,
+  audio: null,
+  wallStart: 0,
+  wallOffset: 0,
+  useWall: false,
+  /* 多首：当前曲目索引与切歌回调 */
+  songIdx: 0,
+  onSong: null,
+
+  setSrc(v) {
+    this.src = v;
+    if (v !== 'internal') this.useWall = false;
+  },
+
+  /* 全局微调 + 本首偏移的合计（秒）。正数 = 歌词提前 */
+  songShift() {
+    return (Number(S.offset) || 0) / 1000 + (perSongOffMs() / 1000);
+  },
+
+  /* 原始歌曲位置：不含任何偏移。HUD 时间码、进度读数都该用它 */
+  songRaw() {
+    if (this.src === 'internal') {
+      /* 只要有音频就用音频自己的播放位置，与元数据是否就绪无关。
+         旧逻辑在 duration 未就绪时会退回无音频时的 wall 时钟，
+         于是「先空载点过播放、再载入音频」时歌词会从旧的 wall 位置起跳，
+         和音频整段错开几十秒到几分钟。 */
+      if (this.audio) return this.audio.currentTime || 0;
+      if (this.useWall && this.running) return (Date.now() - this.wallStart) / 1000 + this.wallOffset;
+      return this.wallOffset;
+    }
+    if (!this.extStamp) return 0;
+    return this.extSong + (Date.now() - this.extStamp) / 1000;
+  },
+
+  /* 歌词索引位置：内部源必须叠加全局微调与本首偏移，
+     否则现场播音频时「微调 offset」是个死控件 —— 这是调了没反应的根因。
+     外部源的 extSong 已在 feed() 里带过 offset，不能再叠一次。 */
+  nowSong() {
+    if (this.src === 'internal') return this.songRaw() + this.songShift();
+    return this.songRaw();
+  },
+
+  nowTc() {
+    if (this.src === 'internal') return S.anchor + this.songRaw();
+    if (!this.extStamp) return 0;
+    return this.tcSec + (Date.now() - this.lastExt) / 1000 + this.freewheel;
+  },
+
+  /* 时间码 → 当前曲目的基准与偏移
+     单首时直接用全局 anchor / offset；
+     setlist 非空时按 tcIn 升序落到某一首，切歌通过 onSong 回调通知外部。 */
+  locate(tc) {
+    const list = slotList();
+    if (!list || !list.length) {
+      return { anchor: S.anchor, offset: S.offset, idx: 0, entry: null };
+    }
+    let idx = -1;
+    for (let i = 0; i < list.length; i++) {
+      if (tc >= list[i].tcIn) idx = i;
+      else break;
+    }
+    if (idx < 0) {
+      /* 还没到第一首：停在第一首开头，避免歌词空白或负数 */
+      return { anchor: list[0].anchor, offset: list[0].offset, idx: 0, entry: list[0], before: true };
+    }
+    const e = list[idx];
+    return { anchor: e.anchor, offset: e.offset, idx: idx, entry: e };
+  },
+
+  /* 外部时间码到达 */
+  feed(tc, meta) {
+    const now = Date.now();
+    const geo = this.locate(tc);
+    if (geo.idx !== this.songIdx) {
+      const prev = this.songIdx;
+      this.songIdx = geo.idx;
+      if (prev !== geo.idx && typeof this.onSong === 'function') {
+        try { this.onSong(geo.idx, geo.entry, prev); } catch (e) { console.warn(e); }
+      }
+    }
+    const target = tc - geo.anchor + geo.offset / 1000 + perSongOffMs() / 1000;
+    if (!this.extStamp) {
+      this.extSong = target; this.extStamp = now;
+    } else {
+      const predicted = this.extSong + (now - this.extStamp) / 1000;
+      const diff = target - predicted;
+      if (Math.abs(diff) > 0.5) {
+        this.extSong = target; this.extStamp = now;
+      } else {
+        const k = S.smooth ? 0.08 : 1;
+        this.extSong = predicted + diff * k;
+        this.extStamp = now;
+      }
+    }
+    this.tcSec = tc;
+    this.lastExt = now;
+    this.locked = true;
+    this.running = true;
+  },
+
+  tick() {
+    if (this.src !== 'internal') {
+      const idle = (Date.now() - this.lastExt) / 1000;
+      if (this.lastExt && idle > 1.2) this.locked = false;
+    }
+  },
+
+  startInternal() {
+    this.running = true;
+    if (this.audio) {
+      /* 有音频就不该再有 wall 时钟并行，否则两条时间源会互相抢 */
+      this.useWall = false;
+      this.audio.play().catch(() => { });
+    } else {
+      this.wallStart = Date.now();
+      this.wallOffset = 0;
+      this.useWall = true;
+    }
+  },
+  stopInternal() {
+    this.running = false;
+    if (this.audio) this.audio.pause();
+    if (this.useWall) this.wallOffset = (Date.now() - this.wallStart) / 1000 + this.wallOffset;
+  },
+  seekInternal(t) {
+    t = Math.max(0, t);
+    if (this.audio) { try { this.audio.currentTime = t; } catch (e) { } }
+    else { this.wallOffset = t; this.wallStart = Date.now(); }
+  }
+};
+
+/* =====================================================================
+   LTC 解码（双相标记编码，过零间隔判定）
+   ===================================================================== */
+class LtcDecoder {
+  constructor(fps, sr) {
+    this.sr = sr;
+    this.setFps(fps);
+    this.lastSign = 0;
+  }
+  setFps(fps) {
+    this.fps = fps;
+    this.unit = this.sr / (fps * 160);
+    this.cell = this.unit * 2;
+    this.phase = 0;
+    this.edgeCount = 0;
+    this.bits = [];
+    this.lastSec = null;
+    this.frames = 0;
+    this.onFrame = this.onFrame || null;
+  }
+  /* 相位法：每个 bit cell 长 2 unit，cell 中点有跳变即 bit=1 */
+  push(buf) {
+    const cell = this.cell;
+    const loMid = cell * 0.22;
+    const loEdge = cell * 0.74;
+    for (let i = 0; i < buf.length; i++) {
+      this.phase += 1;
+      const v = buf[i];
+      const sg = v > 0.03 ? 1 : (v < -0.03 ? -1 : 0);
+      if (!sg) continue;
+      if (this.lastSign === 0) { this.lastSign = sg; continue; }
+      if (sg === this.lastSign) continue;
+      this.lastSign = sg;
+      const p = this.phase;
+      if (p >= loEdge) {
+        this.pushBit(this.edgeCount ? 1 : 0);
+        this.edgeCount = 0;
+        this.phase = 0;
+      } else if (p >= loMid) {
+        this.edgeCount = 1;
+      }
+    }
+  }
+  pushBit(b) {
+    this.bits.push(b);
+    if (this.bits.length > 200) this.bits.splice(0, this.bits.length - 160);
+    this.tryParse();
+  }
+  tryParse() {
+    const n = this.bits.length;
+    if (n < 16) return;
+    const SYNC = '0011111111111101';
+    if (this.bits.slice(n - 16).join('') !== SYNC) return;
+    if (n < 80) { this.bits = []; return; }
+    this.emit(this.bits.slice(n - 80, n - 16));
+    this.bits = [];
+  }
+  emit(b) {
+    const get = (from, len) => {
+      let v = 0;
+      for (let i = 0; i < len; i++) v |= (b[from + i] << i);
+      return v;
+    };
+    const ff = get(0, 4) + 10 * get(8, 2);
+    const ss = get(16, 4) + 10 * get(24, 3);
+    const mm = get(32, 4) + 10 * get(40, 3);
+    const hh = get(48, 4) + 10 * get(56, 2);
+    if (ss > 59 || mm > 59 || hh > 23 || ff >= this.fps) return;
+    const sec = hh * 3600 + mm * 60 + ss + ff / this.fps;
+    if (this.lastSec !== null && Math.abs(sec - this.lastSec) < 1e-6) return;
+    this.lastSec = sec;
+    this.frames++;
+    if (this.onFrame) this.onFrame(sec);
+  }
+}
+const Ltc = {
+  ctx: null, stream: null, proc: null, mute: null, dec: null,
+  running: false, level: 0,
+
+  async start(deviceId) {
+    if (this.running) return;
+    const constraints = {
+      audio: {
+        deviceId: deviceId ? { exact: deviceId } : undefined,
+        autoGainControl: false, echoCancellation: false, noiseSuppression: false,
+        channelCount: 1
+      }
+    };
+    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    const src = this.ctx.createMediaStreamSource(this.stream);
+    const dec = new LtcDecoder(S.fps, this.ctx.sampleRate);
+    dec.onFrame = sec => Clock.feed(sec);
+    this.dec = dec;
+    const proc = this.ctx.createScriptProcessor(4096, 1, 1);
+    proc.onaudioprocess = ev => {
+      const buf = ev.inputBuffer.getChannelData(0);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) { const a = buf[i] < 0 ? -buf[i] : buf[i]; if (a > peak) peak = a; }
+      this.level = peak;
+      dec.push(buf);
+    };
+    src.connect(proc);
+    const mute = this.ctx.createGain();
+    mute.gain.value = 0;
+    proc.connect(mute);
+    mute.connect(this.ctx.destination);
+    this.proc = proc; this.mute = mute;
+    this.running = true;
+  },
+  stop() {
+    this.running = false;
+    try { if (this.proc) this.proc.disconnect(); } catch (e) { }
+    try { if (this.mute) this.mute.disconnect(); } catch (e) { }
+    try { if (this.stream) this.stream.getTracks().forEach(t => t.stop()); } catch (e) { }
+    try { if (this.ctx) this.ctx.close(); } catch (e) { }
+    this.ctx = null; this.stream = null; this.proc = null; this.mute = null; this.dec = null;
+  },
+  async listDevices() {
+    const list = await navigator.mediaDevices.enumerateDevices();
+    return list.filter(d => d.kind === 'audioinput');
+  }
+};
+
+/* =====================================================================
+   MTC 解码（Web MIDI，quarter frame）
+   ===================================================================== */
+const Mtc = {
+  access: null, input: null, nib: new Array(8).fill(null),
+  frames: 0, portName: '', lastSec: null,
+
+  supported() { return !!navigator.requestMIDIAccess; },
+
+  async connect() {
+    if (!navigator.requestMIDIAccess) throw new Error('此浏览器不支持 Web MIDI');
+    this.access = await navigator.requestMIDIAccess({ sysex: true });
+    const inputs = Array.from(this.access.inputs.values());
+    if (!inputs.length) throw new Error('未找到 MIDI 输入端口');
+    const inp = inputs[0];
+    this.input = inp;
+    this.portName = inp.name;
+    inp.onmidimessage = ev => this.onMsg(ev.data);
+    return inp.name;
+  },
+  disconnect() {
+    if (this.input) this.input.onmidimessage = null;
+    this.input = null; this.portName = ''; this.nib.fill(null);
+  },
+  onMsg(d) {
+    if (!d || !d.length) return;
+    const st = d[0];
+    if (st === 0xF1 && d.length >= 2) {
+      const type = (d[1] >> 4) & 7;
+      this.nib[type] = d[1] & 15;
+      if (this.nib.every(x => x !== null)) this.assemble();
+    } else if (st === 0xF0 && d[0] === 0xF0 && d[d.length - 1] === 0xF7 && d.length >= 9) {
+      if (d[1] === 0x7F && d[3] === 0x01 && d[4] === 0x01) {
+        const hh = d[5], mm = d[6], ss = d[7], ff = d[8];
+        this.pushTc(hh, mm, ss, ff);
+      }
+    }
+  },
+  assemble() {
+    const n = this.nib;
+    const ff = (n[0] | ((n[1] & 3) << 4));
+    const ss = (n[2] | ((n[3] & 7) << 4));
+    const mm = (n[4] | ((n[5] & 7) << 4));
+    const hh = (n[6] | ((n[7] & 3) << 4));
+    if (ff >= S.fps || ss > 59 || mm > 59 || hh > 23) return;
+    this.pushTc(hh, mm, ss, ff);
+  },
+  pushTc(hh, mm, ss, ff) {
+    const sec = hh * 3600 + mm * 60 + ss + ff / S.fps;
+    if (this.lastSec !== null && Math.abs(sec - this.lastSec) < 1e-6) return;
+    this.lastSec = sec;
+    this.frames++;
+    Clock.feed(sec);
+  }
+};
+
+/* =====================================================================
+   网络桥（WebSocket JSON）
+   ===================================================================== */
+const WsBridge = {
+  sock: null, state: 'idle', url: '',
+  want: false,     // 用户是否希望保持连接
+  retry: 0,        // 退避计数
+  timer: 0, hb: 0, lastMsg: 0,
+  gen: 0,          // 连接代次：旧的 socket 事件不再驱动重连
+
+  connect(url) {
+    this.url = url;
+    this.want = true;
+    this.retry = 0;
+    this.gen++;            // 作废之前所有 socket 的回调
+    clearTimeout(this.timer);
+    this._open();
+  },
+
+  _open() {
+    if (!this.want || !this.url) return;
+    clearTimeout(this.timer);
+    const gen = ++this.gen;
+    if (this.sock) { try { this.sock.close(); } catch (e) { } }
+    let sock = null;
+    try { sock = new WebSocket(this.url); }
+    catch (e) { this.state = 'retry'; this._ui(); this._schedule(); return; }
+    this.sock = sock;
+    this.state = 'connecting';
+    this._ui();
+    sock.onopen = () => {
+      if (gen !== this.gen) return;
+      this.state = 'open';
+      this.retry = 0;
+      this.lastMsg = Date.now();
+      this._ui();
+    };
+    sock.onclose = () => {
+      if (gen !== this.gen) return;   // 被新连接替换，不算掉线
+      this.sock = null;
+      if (!this.want) return;
+      this.state = 'closed';
+      /* 断线只判失锁，不停走：演出中断码宁可续走也不要黑屏，用红字告警 */
+      if (S.src !== 'internal') Clock.locked = false;
+      this._ui();
+      this._schedule();
+    };
+    sock.onerror = () => { if (gen === this.gen) { this.state = 'error'; this._ui(); } };
+    sock.onmessage = ev => {
+      if (gen !== this.gen) return;
+      this.lastMsg = Date.now();
+      this.lastRaw = String(ev.data).slice(0, 80);
+      if (this.state !== 'open') { this.state = 'open'; this._ui(); }
+      let d = null;
+      try { d = JSON.parse(ev.data); } catch (e) { return; }
+      if (!d) return;
+      /* 心跳应答不当作时间码 */
+      if (d.pong || d.ping) return;
+      try {
+        if (d.fps) S.fps = +d.fps;
+        if (typeof d.tc === 'string') Clock.feed(tcToSec(d.tc, S.fps));
+        else if (typeof d.tc === 'number') Clock.feed(d.tc);
+        else if (typeof d.song === 'number') Clock.feed(S.anchor + d.song);
+        else if (d.cmd === 'go') Transport.go();
+        else if (d.cmd === 'next') Transport.next();
+        else if (d.cmd === 'prev') Transport.prev();
+        else if (d.cmd === 'clear') Transport.clear();
+      } catch (err) {
+        this.lastErr = (err && err.message) || String(err);
+      }
+    };
+    this._heartbeat();
+  },
+
+  _schedule() {
+    if (!this.want) return;
+    this.retry = Math.min(this.retry + 1, 8);
+    const wait = Math.min(1000 * Math.pow(1.8, this.retry), 10000);
+    clearTimeout(this.timer);
+    this.state = 'retry';
+    this.timer = setTimeout(() => this._open(), wait);
+    this._ui();
+  },
+
+  _heartbeat() {
+    clearInterval(this.hb);
+    this.hb = setInterval(() => {
+      if (!this.want) return;
+      const rs = this.sock ? this.sock.readyState : 3;
+      /* 已断开但没收到 close 事件时，主动收尸并重连 */
+      if (rs === 2 || rs === 3) {
+        if (this.state !== 'retry') {
+          this.state = 'closed';
+          if (S.src !== 'internal') Clock.locked = false;
+          this._ui();
+          this._schedule();
+        }
+        return;
+      }
+      try { this.sock.send(JSON.stringify({ ping: 1 })); } catch (e) { }
+      /* 长时间没有任何数据只做标记，不主动断开：发送方可能只在变化时发帧 */
+      if (Date.now() - this.lastMsg > 30000 && this.state === 'open') {
+        this.state = 'stale';
+        if (S.src !== 'internal') Clock.locked = false;
+        this._ui();
+      }
+    }, 5000);
+  },
+
+  disconnect() {
+    this.want = false;
+    this.gen++;
+    clearTimeout(this.timer);
+    clearInterval(this.hb);
+    if (this.sock) { try { this.sock.close(); } catch (e) { } }
+    this.sock = null;
+    this.state = 'idle';
+    this._ui();
+  },
+
+  _ui() { if (typeof SOCK_UI === 'function') SOCK_UI(); }
+};
+
+/* =====================================================================
+   输出渲染器
+   ===================================================================== */
+const Renderer = {
+  frame: null, stack: null, stage: null,
+  domLines: [], curIdx: -2, wordEls: [],
+  bgType: '', bgCanvas: null, bgRaf: 0, bgMediaEl: null,
+  lastLinesRef: null,
+
+  init() {
+    this.frame = $('#frame');
+    this.stack = $('#stack');
+    this.stage = $('#stage');
+    this.layout();
+  },
+
+  applyStyle() {
+    if (!this.stack) return;
+    this.stack.className = 'lyrstack';
+    this.frame.className = 'frame s-' + S.style
+      + (S.fade === false ? '' : ' fade-mask')
+      + (S.focus ? ' focus-zoom' : '');
+    const h = this.frame.clientHeight || 800;
+    const fs = Math.max(18, h * 0.088 * (S.fs / 100));
+    this.stack.style.setProperty('--fs', fs.toFixed(1) + 'px');
+    this.stack.style.setProperty('--lh', (S.lh / 100).toFixed(3));
+    /* 字距：每种样式有自己的基准，再乘用户倍数（100 = 原样） */
+    const baseTr = S.style === 'vertical' ? 0.18
+      : (S.style === 'neon' ? 0.03
+      : (S.style === 'type' ? 0.04
+      : (S.style === 'duo' ? 0.02
+      : (S.style === 'marquee' ? 0.03
+      : (S.style === 'glow' ? 0.04 : (S.style === 'minimal' ? 0.02 : 0.01))))));
+    this.stack.style.letterSpacing = (baseTr * ((+S.tracking || 100) / 100)).toFixed(3) + 'em';
+    /* 镜面只翻歌词层；HUD 与背景不动 */
+    if (S.mirror === 'x') this.frame.classList.add('mir-x');
+    else if (S.mirror === 'y') this.frame.classList.add('mir-y');
+  },
+
+  /* 逐行文字效果：描边与阴影。逐字填充的字符是透明字身，阴影不可见，描边仍有效 */
+  applyFx(el) {
+    if (!el) return;
+    const w = +S.strokeW || 0;
+    el.style.webkitTextStroke = w > 0 ? (w + 'px ' + (S.strokeC || '#000000')) : '';
+    const b = +S.shadowB || 0;
+    el.style.textShadow = b > 0 ? ('0 2px ' + b + 'px ' + (S.shadowC || '#000000')) : '';
+  },
+
+  layout() {
+    if (!this.frame || !this.stage) return;
+    const W = this.stage.clientWidth || window.innerWidth;
+    const H = this.stage.clientHeight || window.innerHeight;
+    let w, h;
+    if (S.ratio === 'fit') { w = W; h = H; }
+    else {
+      const [a, b] = S.ratio.split(':').map(Number);
+      if (W / H > a / b) { h = H; w = H * a / b; }
+      else { w = W; h = W * b / a; }
+    }
+    this.frame.style.width = Math.floor(w) + 'px';
+    this.frame.style.height = Math.floor(h) + 'px';
+    this.applyStyle();
+    if (this.bgCanvas) { this.bgCanvas.width = Math.floor(w); this.bgCanvas.height = Math.floor(h); }
+  },
+
+  build() {
+    if (!this.stack) return;
+    this.stack.innerHTML = '';
+    this.curEl = null;
+    this.curIdx = -2;
+  },
+
+  fill(idx) {
+    const stack = this.stack;
+    stack.innerHTML = '';
+    const cap = S.cap;
+    const from = cap ? -1 : 0;
+    const to = cap ? 1 : 0;
+    for (let d = from; d <= to; d++) {
+      const i = idx + d;
+      const line = (i >= 0 && i < LINES.length) ? LINES[i] : null;
+      const div = document.createElement('div');
+      div.className = 'lyrline ' + (d === 0 ? 'cur' : (line ? 'ctx' : 'ghost'));
+      if (line) { this.fillText(div, line); this.applyFx(div); }
+      else div.innerHTML = '&nbsp;';
+      if (d === 0) this.curEl = div;
+      stack.appendChild(div);
+    }
+  },
+
+  fillText(div, line) {
+    /* 逐字样式都要拆成字符：逐字填充靠 --p 推进，弹入与打字机靠 --i 递延 */
+    if (S.style === 'karaoke' || S.style === 'bounce' || S.style === 'type') {
+      const frag = document.createDocumentFragment();
+      const chars = Array.from(line.text);
+      for (let c = 0; c < chars.length; c++) {
+        const sp = document.createElement('span');
+        sp.className = 'char';
+        sp.textContent = chars[c] === ' ' ? '\u00A0' : chars[c];
+        sp.style.setProperty('--i', c);
+        sp.style.setProperty('--p', '0%');
+        frag.appendChild(sp);
+      }
+      div.appendChild(frag);
+    } else {
+      div.textContent = line.text;
+    }
+  },
+
+  render(time, blackout) {
+    if (!LINES.length) return;
+    if (blackout) {
+      if (this.curIdx !== -3) { this.curIdx = -3; this.stack.style.opacity = '0'; }
+      return;
+    }
+    /* 换歌过渡：整首歌词换了引用，先压黑再线性淡入，避免硬切闪跳 */
+    if (LINES !== this.lastLinesRef) {
+      this.lastLinesRef = LINES;
+      this.curIdx = -2;
+      this.transAt = Date.now();
+    }
+    /* 用 Date.now 而不是 performance.now：后者在后台标签/部分内嵌环境里会停走 */
+    const since = Date.now() - (this.transAt || -1e9);
+    this.stack.style.opacity = since < 240 ? Math.max(0, since / 240).toFixed(3) : '1';
+    const idx = indexAt(time);
+    const geo = idx < 0 ? -1 : idx;
+    if (geo !== this.curIdx) {
+      this.curIdx = geo;
+      this.fill(geo);
+    }
+    this.updateWords(time, idx);
+  },
+
+  updateWords(time, idx) {
+    if (idx < 0 || !this.curEl) return;
+    const line = LINES[idx];
+    if (!line) return;
+    const chars = this.curEl.children;
+    if (!chars.length || !chars[0].classList.contains('char')) return;
+    if (S.style !== 'karaoke') return;
+    const ws = line.words;
+    if (!ws || !ws.length) {
+      const n = chars.length;
+      const p = Math.min(1, Math.max(0, (time - line.t) / Math.max(0.1, line.dur)));
+      for (let c = 0; c < n; c++) {
+        const local = Math.min(1, Math.max(0, (p * n) - c));
+        chars[c].style.setProperty('--p', (local * 100).toFixed(1) + '%');
+      }
+    } else {
+      for (let c = 0; c < chars.length; c++) {
+        const w = ws[c];
+        if (!w) { chars[c].style.setProperty('--p', '100%'); continue; }
+        const local = Math.min(1, Math.max(0, (time - w.t) / Math.max(0.01, w.d)));
+        chars[c].style.setProperty('--p', (local * 100).toFixed(1) + '%');
+      }
+    }
+  },
+
+  setBackground() {
+    const layer = $('#bgLayer');
+    if (!layer) return;
+    if (this.bgRaf) { cancelAnimationFrame(this.bgRaf); this.bgRaf = 0; }
+    this.bgCanvas = null; this.bgMediaEl = null;
+    layer.className = 'bglayer';
+    layer.innerHTML = '';
+    $('#bgScrim').style.display = (S.bg === 'none') ? 'none' : 'block';
+
+    if (S.bg === 'none') { layer.classList.add('bg-none'); return; }
+    if (S.bg === 'grad') { layer.classList.add('bg-grad'); return; }
+
+    if (S.bg === 'media') {
+      const src = S.mediaSrc;
+      if (!src) { layer.classList.add('bg-none'); return; }
+      if (S.mediaType === 'video') {
+        const v = document.createElement('video');
+        v.src = src; v.loop = true; v.muted = true; v.autoplay = true; v.playsInline = true;
+        v.className = 'bg-media';
+        layer.appendChild(v);
+        v.play().catch(() => { });
+        this.bgMediaEl = v;
+      } else {
+        const img = document.createElement('img');
+        img.src = src; img.className = 'bg-media';
+        layer.appendChild(img);
+        this.bgMediaEl = img;
+      }
+      return;
+    }
+
+    const cv = document.createElement('canvas');
+    cv.className = 'bg-canvas';
+    cv.width = this.frame.clientWidth || 1280;
+    cv.height = this.frame.clientHeight || 720;
+    layer.appendChild(cv);
+    this.bgCanvas = cv;
+    const ctx = cv.getContext('2d');
+    const kind = S.bg;
+    let t0 = performance.now();
+
+    const draw = (now) => {
+      const W = cv.width, H = cv.height;
+      const t = (now - t0) / 1000;
+      ctx.clearRect(0, 0, W, H);
+      if (kind === 'aurora') {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#04070A'); g.addColorStop(1, '#020304');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        for (let k = 0; k < 5; k++) {
+          const cx = W * (0.5 + 0.34 * Math.sin(t * 0.18 + k * 1.3));
+          const cy = H * (0.55 + 0.2 * Math.cos(t * 0.13 + k * 0.9));
+          const r = Math.max(W, H) * (0.34 + 0.05 * Math.sin(t * 0.4 + k));
+          const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+          const hue = 168 + k * 12;
+          rg.addColorStop(0, 'hsla(' + hue + ',82%,60%,' + (0.34 - k * 0.035) + ')');
+          rg.addColorStop(0.5, 'hsla(' + (hue + 26) + ',70%,44%,' + (0.16 - k * 0.016) + ')');
+          rg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = rg;
+          ctx.fillRect(0, 0, W, H);
+        }
+      } else if (kind === 'dust') {
+        ctx.fillStyle = '#04060A'; ctx.fillRect(0, 0, W, H);
+        const n = 90;
+        for (let k = 0; k < n; k++) {
+          const seed = k * 37.17;
+          const x = ((seed * 13.3 + t * (8 + (k % 7) * 3)) % (W + 80)) - 40;
+          const y = (H * ((seed % 97) / 97) + H * 0.07 * Math.sin(t * 0.3 + k)) % H;
+          const r = 0.5 + (k % 4) * 0.45;
+          const a = 0.10 + 0.3 * Math.abs(Math.sin(t * 0.55 + k * 2.1));
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(150,235,225,' + a.toFixed(3) + ')';
+          ctx.fill();
+        }
+      } else if (kind === 'wave') {
+        ctx.fillStyle = '#04060A'; ctx.fillRect(0, 0, W, H);
+        const rows = 3;
+        for (let r = 0; r < rows; r++) {
+          ctx.beginPath();
+          for (let x = 0; x <= W; x += 3) {
+            const ph = x / W * Math.PI * 4 + t * (0.5 + r * 0.18) + r * 1.7;
+            const amp = H * (0.045 + r * 0.012);
+            const y = H * 0.5 + Math.sin(ph) * amp + Math.sin(ph * 2.3 + t * 0.4) * amp * 0.36;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = 'rgba(59,227,198,' + (0.30 - r * 0.06) + ')';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+        const g = ctx.createRadialGradient(W * 0.5, H * 0.5, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.6);
+        g.addColorStop(0, 'rgba(59,227,198,0.05)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+      this.bgRaf = requestAnimationFrame(draw);
+    };
+    this.bgRaf = requestAnimationFrame(draw);
+  },
+
+  hud(tc, srcName, stateName, showTc, locked) {
+    const tl = $('#hudTL'), br = $('#hudBR');
+    if (!tl) return;
+    tl.style.display = 'flex';
+    br.style.display = showTc ? 'flex' : 'none';
+    $('#hudSrc').textContent = srcName || 'INTERNAL';
+    const st = $('#hudState');
+    st.textContent = stateName || 'STANDBY';
+    /* 外部时间码失锁时把状态标红，台上扫一眼就能看见 */
+    st.style.color = (locked === false) ? '#ff5a5a' : '';
+    $('#hudTc').textContent = tc;
+    $('#hudFps').textContent = S.fps + 'FPS';
+  },
+
+  /* 倒计时与临时上屏：独立于歌词层，不参与歌词渲染的换行判断 */
+  overlay() {
+    const wrap = $('#cdWrap');
+    if (!wrap) return;
+    const left = S.cdEndAt ? Math.max(0, (S.cdEndAt - Date.now()) / 1000) : 0;
+    const on = !!S.cdEndAt && left > 0;
+    if (wrap.classList.contains('on') !== on) wrap.classList.toggle('on', on);
+    const full = !!(on && S.cdFull);
+    if (this.frame && this.frame.classList.contains('cdfull') !== full) {
+      this.frame.classList.toggle('cdfull', full);
+    }
+    if (on) {
+      const mm = Math.floor(left / 60), ss = Math.floor(left % 60);
+      const label = pad2(mm) + ':' + pad2(ss);
+      const el = $('#cdVal');
+      if (el) {
+        if (el.textContent !== label) el.textContent = label;
+        const warn = left <= 10;
+        if (el.classList.contains('warn') !== warn) el.classList.toggle('warn', warn);
+      }
+    }
+    const sub = $('#subWrap');
+    if (sub) {
+      const want = !!(S.subOn && S.subText);
+      if (sub.classList.contains('on') !== want) sub.classList.toggle('on', want);
+      const tx = $('#subTxt');
+      if (tx && tx.textContent !== (S.subText || '')) tx.textContent = S.subText || '';
+    }
+  }
+};
+
+/* =====================================================================
+   输出窗口主循环
+   ===================================================================== */
+const OutApp = {
+  snap: { song: 0, tc: 0, running: false, locked: false, at: 0 },
+  blackout: false,
+  linesRef: null,
+
+  init() {
+    Renderer.init();
+    window.addEventListener('resize', () => Renderer.layout());
+    Renderer.build();
+    Renderer.setBackground();
+    Bus.listen(msg => this.onBus(msg));
+    Bus.send('hello', { from: 'output' });
+    const frame = () => {
+      const t = this.now();
+      Renderer.render(t, this.blackout);
+      Renderer.overlay();
+      const tc = secToTc(this.nowTc(t), S.fps);
+      const ext = S.src !== 'internal';
+      const st = !this.snap.running ? 'STANDBY' : (ext && this.snap.locked ? 'RUN · LOCK' : (ext ? 'RUN · FREE' : 'RUN'));
+      Renderer.hud(tc, S.src.toUpperCase(), st, S.showTc, ext ? !!this.snap.locked : null);
+    };
+    const loop = () => {
+      this.lastRaf = Date.now();
+      frame();
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    /* 投屏窗口被切到后台时 rAF 会被节流甚至停摆，定时器兜底保证画面继续走 */
+    setInterval(() => {
+      if (Date.now() - (this.lastRaf || 0) > 200) frame();
+    }, 100);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'f' || e.key === 'F') this.toggleFullscreen();
+      if (e.key === 'Escape') Bus.send('cmd', { cmd: 'clear' });
+    });
+  },
+
+  now() {
+    if (!this.snap.running) return this.snap.song;
+    return this.snap.song + (Date.now() - this.snap.at) / 1000;
+  },
+  /* 时间码只跟「真实位置」走：snap.tc 是控制台用 songRaw 算出的真时间码，
+     song 已含偏移，所以差值仍是流逝量，HUD 不会因为调 offset 而跳 */
+  nowTc(song) {
+    return this.snap.tc + (song - this.snap.song);
+  },
+
+  onBus(msg) {
+    if (msg.type === 'clock') {
+      this.snap.song = msg.song || 0;
+      this.snap.tc = msg.tc || 0;
+      this.snap.running = !!msg.running;
+      this.snap.locked = !!msg.locked;
+      this.snap.at = msg.t || Date.now();
+    } else if (msg.type === 'state') {
+      const prevStyle = S.style, prevBg = S.bg, prevRatio = S.ratio;
+      if (msg.S) S = Object.assign({}, DEF_STATE, msg.S);
+      if (msg.lineCount !== undefined) { /* lines come via full */ }
+      if (Array.isArray(msg.lines)) {
+        LINES = msg.lines;
+        META = msg.meta || META;
+        Renderer.build();
+      }
+      if (prevStyle !== S.style) { Renderer.build(); }
+      if (prevBg !== S.bg) Renderer.setBackground();
+      if (prevRatio !== S.ratio) Renderer.layout();
+      Renderer.applyStyle();
+    } else if (msg.type === 'lines') {
+      LINES = msg.lines || [];
+      META = msg.meta || META;
+      Renderer.build();
+    } else if (msg.type === 'blackout') {
+      this.blackout = !!msg.on;
+    }
+  },
+
+  toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => { });
+    } else {
+      document.exitFullscreen().catch(() => { });
+    }
+  }
+};
+
+/* =====================================================================
+   运输控制
+   ===================================================================== */
+/* 「找当前行」用的歌曲位置。
+   只有外部源需要减回本首偏移——feed() 把 perSongOff 加进了 extSong；
+   内部音频源的 nowSong() 就是 audio.currentTime，本来不含偏移，再减一次会让
+   控制台高亮行比投屏提前、且上一首/下一首判定落到错误的行。 */
+function rawSong() {
+  if (S.src === 'internal') return Clock.nowSong();
+  return Clock.nowSong() - (perSongOffMs ? perSongOffMs() / 1000 : 0);
+}
+const Transport = {
+  blackout: false,
+  go() {
+    if (this.blackout) { this.blackout = false; Bus.send('blackout', { on: false }); }
+    /* GO 是启动/暂停同一个键：演出中按一下就停，没有第二个按钮可找 */
+    if (Clock.running) {
+      if (S.src === 'internal') Clock.stopInternal();
+      else Clock.running = false;
+      UI.sync();
+      return;
+    }
+    if (S.src === 'internal') {
+      Clock.startInternal();
+    } else {
+      Clock.running = true;
+    }
+    UI.sync();
+  },
+  pause() {
+    if (S.src === 'internal') Clock.stopInternal();
+    else Clock.running = false;
+    UI.sync();
+  },
+  next() {
+    const cur = rawSong();
+    const idx = indexAt(cur);
+    const target = idx + 1 < LINES.length ? idx + 1 : LINES.length - 1;
+    if (target >= 0) this.alignTo(target, true);
+  },
+  prev() {
+    const cur = rawSong();
+    const idx = indexAt(cur);
+    let target = idx - 1;
+    if (target < 0) target = 0;
+    this.alignTo(target);
+  },
+  clear() {
+    this.blackout = !this.blackout;
+    Bus.send('blackout', { on: this.blackout });
+    UI.sync();
+  },
+  alignTo(idx, forward) {
+    if (!LINES[idx]) return;
+    const lineT = LINES[idx].t;
+    if (S.src === 'internal') {
+      /* 索引时间含偏移，seek 要减掉它，否则对齐完这一行又整体偏走 */
+      Clock.seekInternal(lineT - Clock.songShift());
+    } else {
+      /* 外部源还没收到任何时间码时 nowSong() 恒为 0，
+         此时对齐会把「目标行时间」整段塞进 offset，一次就偏掉几分钟到几十分钟 */
+      if (!Clock.extStamp) { toast('还没收到时间码，先让外部时间码进来再对齐'); return; }
+      /* 外部源的歌曲位置含本首偏移，目标也要带上它，否则对齐一次就把偏移吃掉 */
+      const seek = lineT + perSongOffMs() / 1000;
+      const cur = Clock.nowSong();
+      let delta = seek - cur;
+      if (forward && delta < 0) delta = 0;
+      S.offset = clampOffset(S.offset + delta * 1000);
+      Clock.extSong = seek;
+      Clock.extStamp = Date.now();
+      Clock.tcSec = lineT + S.anchor - S.offset / 1000;
+    }
+    UI.sync();
+    UI.renderList();
+    Bus.send('state', UI.payload());
+  },
+  seekSong(t) {
+    if (S.src === 'internal') Clock.seekInternal(t - Clock.songShift());
+    else {
+      if (!Clock.extStamp) { toast('还没收到时间码，先让外部时间码进来再定位'); return; }
+      const seek = t + perSongOffMs() / 1000;
+      const delta = seek - Clock.nowSong();
+      S.offset = clampOffset(S.offset + delta * 1000);
+      Clock.extSong = seek; Clock.extStamp = Date.now();
+    }
+    UI.sync();
+  }
+};
+
+/* =====================================================================
+   控制台 UI
+   ===================================================================== */
+const UI = {
+  lastIdx: -99, rafId: 0, lastSend: 0,
+
+  sync() {
+    const tag = $('#srcTag');
+    if (!tag) return;
+    /* 外部源分「已锁」与「失锁续走」两态；失锁要红，不能和正常跑混成 RUN */
+    const ext = S.src !== 'internal';
+    const st = Clock.running ? (ext ? (Clock.locked ? 'LOCK' : 'FREE') : 'RUN') : 'IDLE';
+    this._t(tag, st);
+    this._a(tag, 'class', 'tag' + (st === 'LOCK' || st === 'RUN' ? ' ok' : ''));
+    this._s(tag, 'color', st === 'FREE' ? 'var(--red, #FF5C6C)' : '');
+    this._a($('#ledRun'), 'class', 'led' + (Clock.running ? (ext && !Clock.locked ? ' warn' : ' live') : ''));
+    /* GO 键同时是暂停键，图标要跟着运行状态换 */
+    const goBtn = $('#btnGo');
+    if (goBtn) goBtn.classList.toggle('ico-running', !!Clock.running);
+    this._t($('#runState'), this.blackout ? '清屏中'
+      : (!Clock.running ? '待命' : (ext ? (Clock.locked ? '锁定运行' : '失锁续走') : '运行')));
+    const go = $('#btnGo');
+    /* 只切 rec 这一个类，别覆写整个 className（按钮还有别的样式类） */
+    if (go && go.classList.contains('rec') !== Clock.running) go.classList.toggle('rec', Clock.running);
+    this._t($('#anchorTx'), secToTc(S.anchor, S.fps));
+    this._t($('#tcFps'), S.fps + ' FPS · NDF');
+    this._t($('#offsetVal'), (S.offset >= 0 ? '+' : '') + S.offset + ' ms');
+    this._t($('#fsVal'), S.fs + '%');
+    this._t($('#lhVal'), (S.lh / 100).toFixed(2));
+    this._t($('#ratioVal'), S.ratio === 'fit' ? '自适应' : S.ratio);
+    if ($('#tcModeVal')) {
+      /* 显示的是「实际生效」的驱动：歌词自带时间轴时「均摊」会被跳过，
+         要让用户看见跳过这件事，而不是以为均摊生效了 */
+      const effMode = (S.tcMode === 'clock' && linesHaveTimeline(LINES)) ? 'timeline' : S.tcMode;
+      this._t($('#tcModeVal'), effMode === 'timeline' ? '时间轴'
+        : (effMode === 'clock' ? '时间码均摊' : 'Cue'));
+      this._a($('#tcModeVal'), 'class', 'val');
+      $$('#tcModeSeg .btn').forEach(x => {
+        const want = x.dataset.tcmode === S.tcMode;
+        if (x.classList.contains('on') !== want) x.classList.toggle('on', want);
+      });
+    }
+    this._t($('#styleTag'), S.style.toUpperCase());
+    this._t($('#bgTag'), S.bg.toUpperCase());
+    this._t($('#tcSrcName'), S.src === 'internal' ? '内部时钟' : S.src.toUpperCase());
+    /* 输入控件只在没被用户握着的时候同步，否则每帧覆写会把手拖到一半的滑块弹回去 */
+    this._v2($('#offset'), S.offset);
+    /* 播放条上的常驻微调，和卡片里的同一个值 */
+    this._t($('#offsetMini'), (S.offset >= 0 ? '+' : '') + S.offset + ' ms');
+    this._v2($('#fontSize'), S.fs);
+    this._v2($('#lineHeight'), S.lh);
+    /* 有音频时不碰这行：文件名由载入处写入，被每帧覆写成「已载入」就再也看不到选了哪首 */
+    if (!(Clock.audio && Clock.audio.src)) this._t($('#audioName'), '未加载');
+    this._t($('#songSub'), LINES.length + ' 行 · ' + (META.source || '本地'));
+    this._t($('#songTitle'), META.title || (LINES.length ? '未命名歌词' : '未载入歌词'));
+    const idx = indexAt(rawSong());
+    this._t($('#cueInfo'), LINES[idx] ? ('#' + (idx + 1) + ' ' + LINES[idx].text.slice(0, 22)) : '—');
+    /* 进度条与行对齐要用含偏移的时间；读数「位置 xx.xxs」要显示真实播放位置，
+       调 offset 时读数不该跟着跳 */
+    const pos = Clock.nowSong();
+    const posRaw = Clock.songRaw();
+    this._t($('#posVal'), (posRaw >= 0 ? posRaw.toFixed(2) : '0.00') + 's');
+    const line = LINES[idx];
+    const p = line ? Math.min(1, Math.max(0, (pos - line.t) / Math.max(0.1, line.dur))) : 0;
+    this._s($('#progFill'), 'width', (p * 100).toFixed(1) + '%');
+    this._s($('#progKnob'), 'left', (p * 100).toFixed(1) + '%');
+
+    /* ---- 1.4.0：字距 / 描边阴影 / 镜面 ---- */
+    this._t($('#trVal'), ((+S.tracking || 100) / 100).toFixed(2));
+    this._t($('#skVal'), (+S.strokeW || 0) + ' px');
+    this._t($('#shVal'), (+S.shadowB || 0) + ' px');
+    const fxOn = (+S.strokeW > 0) || (+S.shadowB > 0);
+    this._t($('#fxTag'), fxOn ? 'ON' : 'OFF');
+    this._a($('#fxTag'), 'class', 'tag' + (fxOn ? ' ok' : ''));
+    this._t($('#mirrorVal'), S.mirror === 'x' ? '左右' : (S.mirror === 'y' ? '上下' : '关闭'));
+    const mirSeg = $('#mirrorSeg');
+    if (mirSeg) {
+      for (const b of mirSeg.querySelectorAll('button')) {
+        const want = b.dataset.mirror === (S.mirror || 'off');
+        if (b.classList.contains('on') !== want) b.classList.toggle('on', want);
+      }
+    }
+    this._v2($('#tracking'), +S.tracking || 100);
+    this._v2($('#strokeW'), +S.strokeW || 0);
+    this._v2($('#shadowB'), +S.shadowB || 0);
+    this._v2($('#strokeC'), S.strokeC || '#000000');
+    this._v2($('#shadowC'), S.shadowC || '#000000');
+
+    /* ---- 本首偏移 ---- */
+    const sk = songKey();
+    const po = clampSongOff((S.perSongOff || {})[sk]);
+    this._t($('#psTag'), (po > 0 ? '+' : '') + po + ' ms');
+    this._t($('#psTitle'), META.title || '—');
+
+    /* ---- 现场工具 ---- */
+    const cdLeft = S.cdEndAt ? Math.max(0, (S.cdEndAt - Date.now()) / 1000) : 0;
+    this._t($('#cdTag'), S.cdEndAt ? (cdLeft > 0 ? Math.ceil(cdLeft) + 's' : '结束') : 'IDLE');
+    const swCd = $('#swCdFull');
+    if (swCd && swCd.classList.contains('on') !== !!S.cdFull) swCd.classList.toggle('on', !!S.cdFull);
+
+    /* ---- 歌单响应方式 ---- */
+    this._t($('#slModeVal'), S.setlistMode === 'chain' ? '连续' : '独立');
+    const slSeg = $('#slModeSeg');
+    if (slSeg) {
+      for (const b of slSeg.querySelectorAll('button')) {
+        const want = b.dataset.slmode === (S.setlistMode || 'indep');
+        if (b.classList.contains('on') !== want) b.classList.toggle('on', want);
+      }
+    }
+    this._v2($('#slGap'), Number(S.setlistGap) || 0);
+
+    this.renderPreview(idx);
+  },
+
+  /* 写前比对：值没变就不碰 DOM。
+     optStatic=false 时退化成「每帧全量重写」，用于同 revision 的 A/B 对照 */
+  optStatic: true,
+  _v: {},
+  _t(el, txt) {
+    if (!el) return;
+    if (!this.optStatic) { el.textContent = txt; return; }
+    const k = el.id || el.className;
+    if (this._v['t' + k] === txt) return;
+    this._v['t' + k] = txt; el.textContent = txt;
+  },
+  _a(el, attr, val) {
+    if (!el) return;
+    if (!this.optStatic) { el.setAttribute(attr, val); return; }
+    const k = (el.id || el.className) + '@' + attr;
+    if (this._v['a' + k] === val) return;
+    this._v['a' + k] = val; el.setAttribute(attr, val);
+  },
+  _s(el, prop, val) {
+    if (!el) return;
+    if (!this.optStatic) { el.style[prop] = val; return; }
+    const k = (el.id || el.className) + '@' + prop;
+    if (this._v['s' + k] === val) return;
+    this._v['s' + k] = val; el.style[prop] = val;
+  },
+  _v2(el, val) {
+    if (!el) return;
+    if (document.activeElement === el) return;      // 用户正在拖，别抢
+    if (!this.optStatic) { el.value = val; return; }
+    const k = (el.id || '') + '@value';
+    if (this._v['v' + k] === val) return;
+    this._v['v' + k] = val; el.value = val;
+  },
+
+  renderPreview(idx) {
+    const t = $('#miniText');
+    if (!t) return;
+    if (this.optStatic && this._prevIdx === idx && this._prevFs === S.fs && this._prevBo === this.blackout) return;
+    this._prevIdx = idx; this._prevFs = S.fs; this._prevBo = this.blackout;
+    const line = LINES[idx];
+    t.textContent = line ? line.text : (this.blackout ? '' : '—');
+    t.style.opacity = line ? '1' : '0.35';
+    t.style.fontSize = Math.round(15 * (S.fs / 100)) + 'px';
+  },
+
+  payload() {
+    return {
+      S: S, lines: LINES, meta: META,
+      song: Clock.nowSong(), tc: Clock.nowTc(), running: Clock.running
+    };
+  },
+
+  renderList() {
+    const box = $('#lyricList');
+    if (!box) return;
+    if (!LINES.length) {
+      box.innerHTML = '<div class="empty">导入歌词后在此编辑时间轴<br>' +
+        '<span style="font-family:var(--mono);font-size:11px">双击时间码可手动改写 · 支持逐字歌词</span></div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < LINES.length; i++) {
+      const l = LINES[i];
+      const row = document.createElement('div');
+      row.className = 'lyr';
+      row.dataset.i = i;
+      const t = document.createElement('div');
+      t.className = 't';
+      t.textContent = fmtShort(l.t);
+      const txt = document.createElement('div');
+      txt.className = 'txt';
+      txt.textContent = l.text;
+      row.appendChild(t); row.appendChild(txt);
+      row.addEventListener('click', () => Transport.alignTo(i));
+      t.addEventListener('dblclick', ev => {
+        ev.stopPropagation();
+        const v = prompt('输入新时间（秒 或 mm:ss.xx）', l.t.toFixed(2));
+        if (v == null) return;
+        const nv = parseTimeStr(v);
+        if (isFinite(nv)) { LINES[i].t = nv; LINES = sortLines(LINES); saveState(); this.renderList(); Bus.send('lines', { lines: LINES, meta: META }); }
+      });
+      frag.appendChild(row);
+    }
+    box.innerHTML = '';
+    box.appendChild(frag);
+    this.lastIdx = -99;
+  },
+
+  highlight(now) {
+    const idx = indexAt(now);
+    if (idx === this.lastIdx) return;
+    const rows = $('#lyricList') && $('#lyricList').children;
+    if (!rows) return;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.classList || !row.classList.contains('lyr')) continue;
+      const n = +row.dataset.i;
+      row.classList.toggle('on', n === idx);
+      row.classList.toggle('past', n < idx);
+    }
+    this.lastIdx = idx;
+    if (idx >= 0 && rows[idx]) {
+      const box = $('#lyricList');
+      const r = rows[idx];
+      const top = r.offsetTop - box.clientHeight * 0.42;
+      box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+  },
+
+  loop() {
+    this.lastRaf = Date.now();
+    this.tick();
+    requestAnimationFrame(() => this.loop());
+  },
+
+  /* 真正的一帧工作；rAF 与定时器兜底都走这里 */
+  tick() {
+    try {
+      Clock.tick();
+      const now = Clock.nowSong();
+      const tc = Clock.nowTc();
+      const big = $('#tcBig');
+      if (big) {
+        big.textContent = secToTc(tc, S.fps);
+        big.classList.toggle('lock', (S.src !== 'internal' && Clock.locked));
+      }
+      const led = $('#ledIn');
+      if (led) this._a(led, 'class', 'led' + (Clock.locked || S.src === 'internal' ? ' live' : (Clock.running ? ' warn' : '')));
+      this.highlight(now);
+      this.sync();
+      if (S.src === 'ltc' && Ltc.running) {
+        const pct = Math.min(100, Ltc.level * 220);
+        const meter = $('#ltcMeter');
+        if (meter) meter.style.width = pct.toFixed(0) + '%';
+        if ($('#ltcLevel')) $('#ltcLevel').textContent = (Ltc.level * 100).toFixed(0) + '%';
+        if ($('#ltcLock')) {
+          $('#ltcLock').textContent = Clock.locked ? '已锁定' : '未锁定';
+          $('#ltcLock').style.color = Clock.locked ? 'var(--acc)' : 'var(--mute)';
+        }
+      }
+      const nowMs = Date.now();
+      if (nowMs - this.lastSend > 260) {
+        this.lastSend = nowMs;
+        Bus.send('clock', { song: now, tc: tc, running: Clock.running, locked: Clock.locked });
+      }
+    } catch (e) {
+      this.loopErr = (e && (e.message || e)) + '';
+      if (!this.loopLogged) { this.loopLogged = 1; try { console.error('UILOOP', e); } catch (x) { } }
+    }
+  },
+
+  /* rAF 掉线（窗口后台、部分内嵌浏览器）时由定时器接着推，保证时间码与推送不停 */
+  watchdog() {
+    if (Date.now() - (this.lastRaf || 0) > 200) this.tick();
+  }
+};
+
+function fmtShort(t) {
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return pad2(m) + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+}
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+function sortLines(arr) {
+  return arr.sort((a, b) => a.t - b.t);
+}
+
+/* =====================================================================
+   控制台初始化
+   ===================================================================== */
+const ConsoleApp = {
+  init() {
+    loadState();
+    /* ?opt=0 关闭「写前比对」，退回每帧全量重写：同 revision 的性能 A/B 对照口 */
+    if (QS.get('opt') === '0') UI.optStatic = false;
+    Renderer.frame = null;
+    /* 状态里存着上次选的时钟源，必须同步给时钟引擎，否则外部帧会被当成内部源忽略 */
+    Clock.setSrc(S.src);
+    this.bind();
+    /* 多首：时间码跨过入点自动切歌 */
+    Clock.onSong = (idx) => this.switchToSong(idx);
+    Clock.songIdx = S.songIdx || 0;
+    UI.renderList();
+    UI.sync();
+    UI.loop();
+    setInterval(() => UI.watchdog(), 100);
+    Bus.listen(msg => {
+      if (msg.type === 'hello' && msg.from === 'output') this.onOutputConnected();
+    });
+    this.refreshDevices();
+    if (!LINES.length) this.loadSample(true);
+    /* 上次停在外部源时，把源切换后的 UI 状态也复现出来 */
+    const segBtn = $$('#srcSeg button').find(b => b.dataset.src === S.src);
+    if (segBtn) segBtn.click();
+    /* 上次用的是网络源，刷新后自动重连，不用再手点一次 */
+    if (S.src === 'ws' && S.wsUrl) {
+      if ($('#wsUrl')) $('#wsUrl').value = S.wsUrl;
+      WsBridge.connect(S.wsUrl);
+    } else if ($('#wsUrl')) {
+      $('#wsUrl').value = S.wsUrl || '';
+    }
+  },
+
+  onOutputConnected() {
+    const chip = $('#outState');
+    chip.innerHTML = '<span class="led live"></span>输出已连接';
+    $('#monTag').textContent = 'ONLINE';
+    $('#monTag').className = 'tag ok';
+    /* 全量推送一次，保证输出窗口拿到当前歌词与样式 */
+    Bus.send('state', UI.payload());
+    setTimeout(() => Bus.send('lines', { lines: LINES, meta: META }), 60);
+    setTimeout(() => Bus.send('state', UI.payload()), 140);
+  },
+
+  setOffline() {
+    const chip = $('#outState');
+    if (chip) chip.innerHTML = '<span class="led"></span>输出未连接';
+    $('#monTag').textContent = 'OFFLINE';
+    $('#monTag').className = 'tag';
+  },
+
+  /* ---------- 歌单（多首时间码） ---------- */
+  renderSetlist() {
+    const box = $('#slList');
+    if (!box) return;
+    if (!S.setlist.length) {
+      box.innerHTML = '<div class="empty" style="padding:18px 0;text-align:center;color:#6f7a8c;font-size:12px">还没有曲目</div>';
+      return;
+    }
+    box.innerHTML = '';
+    const slots = (typeof slotList === 'function') ? slotList() : S.setlist;
+    slots.forEach((e, i) => {
+      const d = document.createElement('div');
+      d.className = 'it' + (i === S.songIdx ? ' on' : '');
+      const name = escHtml(e.title || '未命名');
+      const n = Array.isArray(e.lines) ? e.lines.length : 0;
+      /* 连续模式下显示的是累计推后之后的实际入点，方便核对 */
+      const mark = (S.setlistMode === 'chain' && S.setlist[i] && Math.abs((S.setlist[i].tcIn || 0) - e.tcIn) > 0.5)
+        ? '<i title="连续模式累计推后" style="color:var(--acc);font-style:normal">⇢ </i>' : '';
+      d.innerHTML = '<span class="tc">' + mark + secToTc(e.tcIn, S.fps) + '</span>'
+        + '<span class="nm">' + name + '</span>'
+        + '<span class="ln">' + n + ' 行</span>'
+        + '<button data-sl-go="' + i + '">定位</button>'
+        + '<button data-sl-del="' + i + '">移除</button>';
+      box.appendChild(d);
+    });
+    $$('#slList [data-sl-go]').forEach(b => b.onclick = () => this.jumpToSong(+b.dataset.slGo));
+    $$('#slList [data-sl-del]').forEach(b => b.onclick = () => {
+      S.setlist.splice(+b.dataset.slDel, 1);
+      if (S.songIdx >= S.setlist.length) S.songIdx = 0;
+      Clock.songIdx = S.songIdx;
+      if (!S.setlist.length) { Clock.songIdx = 0; S.songIdx = 0; }
+      saveState(); this.renderSetlist();
+    });
+  },
+
+  nextSlot() {
+    const list = S.setlist;
+    if (!list.length) return S.anchor;
+    const last = list[list.length - 1];
+    const dur = Array.isArray(last.lines) && last.lines.length
+      ? (last.lines[last.lines.length - 1].t + lineSpan(last.lines.length - 1, last.lines))
+      : 300;
+    const gap = S.setlistMode === 'chain' ? Math.max(0, Math.min(30, Number(S.setlistGap) || 0)) * 60 : 0;
+    const slot = slotList()[list.length - 1];
+    return (slot ? slot.tcIn : last.tcIn) + Math.max(30, dur) + gap;
+  },
+
+  addToSetlist() {
+    if (!LINES.length) return toast('先载入歌词');
+    const raw = ($('#slTc').value || '').trim();
+    const tcIn = raw ? tcToSec(raw, S.fps) : this.nextSlot();
+    const item = {
+      tcIn: tcIn,
+      anchor: tcIn,
+      offset: 0,
+      title: META.title || ('曲目 ' + (S.setlist.length + 1)),
+      meta: { title: META.title, artist: META.artist, source: META.source },
+      lines: JSON.parse(JSON.stringify(LINES))
+    };
+    if (S.setlistMode === 'chain') {
+      /* 连续模式按列表顺序累计，新曲永远排在末尾，不按时间码重排 */
+      S.setlist.push(item);
+      S.songIdx = S.setlist.length - 1;
+      Clock.songIdx = S.songIdx;
+    } else {
+      const dup = S.setlist.findIndex(e => Math.abs(e.tcIn - tcIn) < 0.02);
+      if (dup >= 0) S.setlist[dup] = item; else S.setlist.push(item);
+      S.setlist.sort((a, b) => a.tcIn - b.tcIn);
+      /* 当前歌词就是这一首，索引要跟上，否则后面按时间码切歌会错位 */
+      const at = S.setlist.indexOf(item);
+      if (at >= 0) { S.songIdx = at; Clock.songIdx = at; }
+    }
+    _slotCache = null;
+    $('#slTc').value = '';
+    saveState();
+    this.renderSetlist();
+    toast('已加入歌单 · ' + item.title + ' @ ' + secToTc(slotList()[S.songIdx] ? slotList()[S.songIdx].tcIn : tcIn, S.fps));
+  },
+
+  jumpToSong(i) {
+    const e = S.setlist[i];
+    if (!e) return;
+    /* 先把时钟推进到该曲入点，再无条件切到该曲
+       （不能依赖 feed 的索引变化，同一首时它是静止的） */
+    const slot = slotList()[i] || e;
+    Clock.feed(slot.tcIn + 0.001);
+    this.switchToSong(i);
+  },
+
+  switchToSong(idx) {
+    const e = S.setlist && S.setlist[idx];
+    if (!e) return;
+    if (Array.isArray(e.lines) && e.lines.length) {
+      LINES = e.lines;
+      if (e.meta) META = Object.assign({}, e.meta);
+    }
+    S.songIdx = idx;
+    Clock.songIdx = idx;
+    _cueRows = null;
+    saveState();
+    UI.renderList(); UI.sync();
+    Bus.send('lines', { lines: LINES, meta: META });
+    toast('切歌 · ' + (e.title || ''));
+  },
+
+  bind() {
+    /* --- 时间码源 --- */
+    $$('#srcSeg button').forEach(b => b.addEventListener('click', () => {
+      $$('#srcSeg button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      const v = b.dataset.src;
+      S.src = v; Clock.setSrc(v);
+      $('#paneInternal').classList.toggle('hide', v !== 'internal');
+      $('#paneLtc').classList.toggle('hide', v !== 'ltc');
+      $('#paneMtc').classList.toggle('hide', v !== 'mtc');
+      $('#paneWs').classList.toggle('hide', v !== 'ws');
+      Clock.locked = false;
+      saveState();
+      Bus.send('state', UI.payload());
+      UI.sync();
+    }));
+
+    /* --- 音频 --- */
+    $('#btnAudio').onclick = () => $('#audioFile').click();
+    $('#audioFile').onchange = ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      if (!Clock.audio) { Clock.audio = new Audio(); Clock.audio.preload = 'auto'; }
+      if (Clock.audio.src && Clock.audio.src.startsWith('blob:')) URL.revokeObjectURL(Clock.audio.src);
+      /* 换音频要同时清掉无音频时留下的 wall 时钟，否则两条时间源会打架 */
+      Clock.useWall = false;
+      Clock.wallOffset = 0;
+      Clock.wallStart = Date.now();
+      Clock.audio.src = URL.createObjectURL(f);
+      try { Clock.audio.currentTime = 0; } catch (e) { }
+      $('#audioName').textContent = f.name.slice(0, 18);
+      /* 载入了音频但时间码源还挂在 LTC / WS 上时，歌词根本不会跟音频走 */
+      if (S.src !== 'internal') {
+        const nm = { ltc: 'LTC', mtc: 'MTC', ws: '网络' }[S.src] || S.src;
+        toast('音频已载入，但时间码源仍是「' + nm + '」；切到「内部」才由音频驱动');
+      } else {
+        toast('音频已载入');
+      }
+    };
+    $('#btnDemo').onclick = () => this.loadSample(false);
+
+    /* --- LTC --- */
+    $('#btnLtcStart').onclick = async () => {
+      try {
+        await Ltc.start($('#ltcDevice').value);
+        toast('LTC 解码已启动');
+      } catch (e) { toast('无法打开音频输入：' + e.message); }
+    };
+    $('#btnLtcStop').onclick = () => { Ltc.stop(); toast('LTC 已停止'); };
+
+    /* --- MTC --- */
+    $('#btnMidi').onclick = async () => {
+      try {
+        const name = await Mtc.connect();
+        $('#midiPort').textContent = name;
+        toast('MIDI 已连接：' + name);
+      } catch (e) { toast('MIDI 连接失败：' + e.message); }
+    };
+    $('#btnMidiOff').onclick = () => { Mtc.disconnect(); $('#midiPort').textContent = '未连接'; };
+
+    /* --- WS --- */
+    $('#btnWs').onclick = () => {
+      const url = $('#wsUrl').value.trim();
+      if (!url) return toast('请填写 WebSocket 地址');
+      S.wsUrl = url;
+      saveState();
+      WsBridge.connect(url);
+      toast('正在连接 ' + url);
+    };
+    $('#btnWsOff').onclick = () => { WsBridge.disconnect(); $('#wsState').textContent = '未连接'; };
+
+    /* --- fps --- */
+    $$('#fpsSeg button').forEach(b => b.addEventListener('click', () => {
+      $$('#fpsSeg button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S.fps = +b.dataset.fps;
+      if (Ltc.dec) Ltc.dec.setFps(S.fps);
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+
+    /* --- anchor --- */
+    $('#btnAnchorNow').onclick = () => {
+      S.anchor = Math.round(Clock.nowTc());
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('已把当前帧设为歌曲 0s');
+    };
+    $('#btnAnchorLine').onclick = () => {
+      const idx = indexAt(rawSong());
+      if (idx < 0) return toast('当前没有激活行');
+      /* 内部音频源直接 seek 到这一行开头，不动全局偏移：
+         旧逻辑无差别改 offset，点一次就把整首偏移改掉，且越点越偏 */
+      if (S.src === 'internal') {
+        Clock.seekInternal(LINES[idx].t - Clock.songShift());
+        saveState(); UI.sync(); UI.renderList(); Bus.send('state', UI.payload());
+        return toast('已对齐第 ' + (idx + 1) + ' 行（音频已跳到行首）');
+      }
+      const cur = rawSong();
+      const delta = LINES[idx].t - cur;
+      S.offset += delta * 1000;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('已对齐第 ' + (idx + 1) + ' 行');
+    };
+
+    /* --- offset --- */
+    $('#offset').oninput = ev => {
+      S.offset = clampOffset(ev.target.value);
+      UI.sync();
+    };
+    $('#offset').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+    $$('[data-off]').forEach(b => b.addEventListener('click', () => {
+      const v = +b.dataset.off;
+      S.offset = v === 0 ? 0 : clampOffset(S.offset + v);
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+
+    /* --- switches --- */
+    const sw = (id, key, cb) => {
+      const el = $(id);
+      el.classList.toggle('on', !!S[key]);
+      el.onclick = () => {
+        S[key] = !S[key];
+        el.classList.toggle('on', S[key]);
+        saveState(); Bus.send('state', UI.payload());
+        if (cb) cb();
+      };
+    };
+    sw('#swSmooth', 'smooth');
+    sw('#swShowTc', 'showTc');
+    sw('#swCap', 'cap', () => { UI.renderList(); });
+    /* 这两个只改 frame 上的类名，重跑 applyStyle 即可，不必重建歌词 DOM */
+    sw('#swFade', 'fade', () => { Renderer.applyStyle(); });
+    sw('#swFocus', 'focus', () => { Renderer.applyStyle(); });
+
+    /* --- 歌词驱动模式 --- */
+    $$('#tcModeSeg .btn').forEach(b => b.addEventListener('click', () => {
+      $$('#tcModeSeg .btn').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S.tcMode = b.dataset.tcmode;
+      _cueRows = null;
+      saveState(); UI.sync(); UI.renderList();
+      Bus.send('state', UI.payload());
+      const label = S.tcMode === 'timeline' ? '歌词时间轴' : (S.tcMode === 'clock' ? '时间码均摊' : 'Cue 表');
+      toast('歌词驱动：' + label
+        + (S.tcMode === 'clock' && linesHaveTimeline(LINES)
+          ? '（这份歌词自带时间轴，均摊会整段错位，建议用「时间轴」）' : ''));
+    }));
+
+    $('#btnCueMark').onclick = () => {
+      if (!LINES.length) return toast('先载入歌词');
+      const idx = indexAt(Clock.nowSong());
+      if (idx < 0) return toast('当前时间码还没进入歌词范围');
+      const tc = Clock.nowTc();
+      LINES[idx].cue = tc;
+      _cueRows = null;
+      saveState();
+      UI.renderList(); UI.sync();
+      Bus.send('lines', { lines: LINES, meta: META });
+      toast('第 ' + (idx + 1) + ' 行 → ' + secToTc(tc, S.fps));
+      if (S.tcMode !== 'cue') {
+        S.tcMode = 'cue';
+        $$('#tcModeSeg .btn').forEach(x => x.classList.toggle('on', x.dataset.tcmode === 'cue'));
+        Bus.send('state', UI.payload());
+      }
+    };
+
+    $('#btnSetlist').onclick = () => { this.renderSetlist(); $('#modalSetlist').classList.add('on'); };
+    $('#btnSlFromNow').onclick = () => { $('#slTc').value = secToTc(Clock.nowTc(), S.fps); };
+    $('#btnSlAdd').onclick = () => this.addToSetlist();
+    $('#btnSlClear').onclick = () => {
+      if (!S.setlist.length) return;
+      S.setlist = []; S.songIdx = 0; Clock.songIdx = 0;
+      saveState(); this.renderSetlist(); UI.renderList();
+      Bus.send('state', UI.payload());
+      toast('歌单已清空');
+    };
+
+    /* --- 歌单响应方式：独立 / 连续累计 --- */
+    $$('#slModeSeg button').forEach(b => b.addEventListener('click', () => {
+      S.setlistMode = b.dataset.slmode;
+      _slotCache = null;
+      saveState(); UI.sync(); this.renderSetlist(); Bus.send('state', UI.payload());
+      toast(S.setlistMode === 'chain' ? '连续模式：按列表累计推后起点' : '独立模式：各首用自己的入点');
+    }));
+    $('#slGap').oninput = ev => {
+      S.setlistGap = Math.max(0, Math.min(30, +ev.target.value || 0));
+      _slotCache = null; UI.sync();
+    };
+    $('#slGap').onchange = () => {
+      saveState(); this.renderSetlist(); Bus.send('state', UI.payload());
+    };
+
+    /* --- 工程导出 / 导入 --- */
+    $('#btnExport').onclick = () => {
+      const st = JSON.parse(JSON.stringify(S));
+      /* blob: 是本机的临时句柄，换机就废，导出时剥掉免得导入后空背景 */
+      if (st.mediaSrc && String(st.mediaSrc).startsWith('blob:')) {
+        delete st.mediaSrc;
+        if (st.bg === 'media') st.bg = 'none';
+      }
+      delete st.api;
+      const proj = {
+        app: 'livelyric', ver: APP_VER, at: new Date().toISOString(),
+        state: st, lines: LINES, meta: META
+      };
+      const blob = new Blob([JSON.stringify(proj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'LiveLyric_' + String(META.title || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      toast('工程已导出');
+    };
+    $('#btnImportProj').onclick = () => $('#projFile').click();
+
+    /* --- 给歌词镶嵌绝对时间码（⌚ 库） --- */
+    const tcLibText = () => {
+      const txt = buildTcLib(LINES, S.anchor, S.fps);
+      if (!txt) toast('先载入带时间轴的歌词');
+      return txt;
+    };
+    $('#btnEmbedTc').onclick = () => {
+      const txt = tcLibText(); if (!txt) return;
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = String(META.title || 'lyric').replace(/[\\/:*?"<>|]/g, '_') + '_时间码.lrc';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      toast('已镶嵌时间码：' + txt.split('\n').filter(x => x.startsWith('⌚')).length + ' 行，起点 ' + secToTc(S.anchor, S.fps));
+    };
+    $('#btnCopyTc').onclick = () => {
+      const txt = tcLibText(); if (!txt) return;
+      const done = () => toast('时间码歌词已复制');
+      const fail = () => toast('浏览器拒绝写剪贴板，请改用「镶嵌时间码」导出文件');
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(done).catch(fail);
+        } else { fail(); }
+      } catch (e) { fail(); }
+    };
+    $('#projFile').onchange = ev => {
+      const f = ev.target.files[0];
+      ev.target.value = '';
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        let j = null;
+        try { j = JSON.parse(String(r.result)); } catch (e) { return toast('不是有效的 JSON'); }
+        if (!j || j.app !== 'livelyric') return toast('不是 LiveLyric 工程文件');
+        if (j.state) S = Object.assign({}, DEF_STATE, j.state);
+        if (Array.isArray(j.lines)) {
+          LINES = sortLines(j.lines.map(l => ({
+            t: +l.t || 0,
+            text: String(l.text == null ? '' : l.text),
+            dur: +l.dur || 0,
+            words: l.words || null,
+            cue: l.cue
+          })));
+        }
+        if (j.meta) META = Object.assign({ title: '', artist: '', source: '' }, j.meta);
+        _slotCache = null; _cueRows = null;
+        Clock.songIdx = 0;
+        saveState(); UI.sync(); UI.renderList(); this.renderSetlist();
+        Bus.send('state', UI.payload());
+        Bus.send('lines', { lines: LINES, meta: META });
+        toast('工程已导入：' + LINES.length + ' 行 · 歌单 ' + (S.setlist || []).length + ' 首');
+      };
+      r.readAsText(f, 'utf-8');
+    };
+
+    /* --- styles --- */
+    $$('#styleGrid .chip').forEach(b => b.addEventListener('click', () => {
+      $$('#styleGrid .chip').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S.style = b.dataset.style;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+
+    /* --- 组合预设：一套样式 + 参数打包，现场一键切 --- */
+    const PRESETS = {
+      night:   { label: '夜场霓虹',   style: 'neon',     fade: true,  focus: false, fs: 105, lh: 150, tracking: 100 },
+      mono:    { label: '念白打字',   style: 'type',     fade: true,  focus: false, fs: 95,  lh: 168, tracking: 100 },
+      launch:  { label: '发布会渐变', style: 'duo',      fade: true,  focus: true,  fs: 110, lh: 145, tracking: 95 },
+      guofeng: { label: '国风竖排',   style: 'vertical', fade: false, focus: false, fs: 92,  lh: 170, tracking: 115 }
+    };
+    const applyPreset = (p, name) => {
+      const rest = Object.assign({}, p); delete rest.label;
+      Object.assign(S, rest);
+      saveState();
+      UI.sync();
+      $$('#styleGrid .chip').forEach(x => x.classList.toggle('on', x.dataset.style === S.style));
+      Renderer.build();
+      Bus.send('state', UI.payload());
+      if ($('#presetTag')) $('#presetTag').textContent = name || '自定义';
+      toast('已应用：' + (name || '我的组合'));
+    };
+    $$('#presetSeg .btn').forEach(b => b.addEventListener('click', () => {
+      const p = PRESETS[b.dataset.preset];
+      if (p) applyPreset(p, p.label);
+    }));
+    $('#btnSavePreset').onclick = () => {
+      S.presetMine = { style: S.style, fade: !!S.fade, focus: !!S.focus,
+        fs: S.fs, lh: S.lh, tracking: S.tracking };
+      saveState();
+      toast('已存下当前组合：' + String(S.style).toUpperCase());
+    };
+    $('#btnMinePreset').onclick = () => {
+      if (!S.presetMine) { toast('还没有存过组合，先点「存当前组合」'); return; }
+      applyPreset(S.presetMine, '我的组合');
+    };
+
+    /* --- backgrounds --- */
+    $$('#bgGrid .chip').forEach(b => b.addEventListener('click', () => {
+      $$('#bgGrid .chip').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S.bg = b.dataset.bg;
+      if (S.bg === 'media' && !S.mediaSrc) { $('#bgFile').click(); return; }
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+    $('#bgFile').onchange = ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      if (S.mediaSrc && S.mediaSrc.startsWith('blob:')) URL.revokeObjectURL(S.mediaSrc);
+      S.mediaSrc = URL.createObjectURL(f);
+      S.mediaType = f.type.startsWith('video') ? 'video' : 'image';
+      S.bg = 'media';
+      $$('#bgGrid .chip').forEach(x => x.classList.toggle('on', x.dataset.bg === 'media'));
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('背景已载入');
+    };
+
+    /* --- ratio --- */
+    $$('#ratioSeg button').forEach(b => b.addEventListener('click', () => {
+      $$('#ratioSeg button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      S.ratio = b.dataset.ratio;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+
+    /* --- font --- */
+    $('#fontSize').oninput = ev => { S.fs = +ev.target.value; UI.sync(); };
+    $('#fontSize').onchange = () => Bus.send('state', UI.payload());
+    $('#lineHeight').oninput = ev => { S.lh = +ev.target.value; UI.sync(); };
+    $('#lineHeight').onchange = () => Bus.send('state', UI.payload());
+
+    /* --- 字距 / 描边 / 阴影（1.4.0） --- */
+    $('#tracking').oninput = ev => { S.tracking = +ev.target.value; UI.sync(); };
+    $('#tracking').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+    $('#strokeW').oninput = ev => { S.strokeW = +ev.target.value; UI.sync(); };
+    $('#strokeW').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+    $('#strokeC').oninput = ev => { S.strokeC = ev.target.value; UI.sync(); };
+    $('#strokeC').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+    $('#shadowB').oninput = ev => { S.shadowB = +ev.target.value; UI.sync(); };
+    $('#shadowB').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+    $('#shadowC').oninput = ev => { S.shadowC = ev.target.value; UI.sync(); };
+    $('#shadowC').onchange = () => { saveState(); Bus.send('state', UI.payload()); };
+
+    /* --- 镜面 --- */
+    $$('#mirrorSeg button').forEach(b => b.addEventListener('click', () => {
+      S.mirror = b.dataset.mirror;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    }));
+
+    /* --- 本首偏移（独立于全局微调，切歌自动跟随） --- */
+    $('#btnPsApply').onclick = () => {
+      const v = parseFloat(($('#psSec').value || '').replace(',', '.').trim());
+      if (!isFinite(v)) return toast('请填秒数，例如 2.5 或 -1.2');
+      const k = songKey();
+      if (S.perSongBase[k] == null) {
+        S.perSongBase[k] = clampSongOff((S.perSongOff || {})[k]);
+      }
+      S.perSongOff[k] = clampSongOff(perSongOffMs() + v * 1000);
+      $('#psSec').value = '';
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('本首整体平移 ' + (v > 0 ? '+' : '') + v.toFixed(2) + ' 秒');
+    };
+    $('#btnPsRestore').onclick = () => {
+      const k = songKey();
+      if (S.perSongBase[k] == null) return toast('本首没有可恢复的偏移');
+      S.perSongOff[k] = S.perSongBase[k];
+      delete S.perSongBase[k];
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('已恢复本首最初的对齐');
+    };
+
+    /* --- 时间码发生器 --- */
+    $('#genDur').oninput = ev => { $('#genDurVal').textContent = ev.target.value + ' 秒'; };
+    $('#genLvl').oninput = ev => { $('#genLvlVal').textContent = ev.target.value + '%'; };
+    const genUrl = base => {
+      const start = ($('#genStart').value || '').trim() || '01:00:00:00';
+      const dur = Math.min(600, Math.max(10, +($('#genDur').value) || 180));
+      const lvl = Math.min(1, Math.max(0.05, (+('#genLvl').value || 50) / 100));
+      return base + '/ltc?start=' + encodeURIComponent(start) + '&dur=' + dur +
+        '&fps=' + S.fps + '&sr=48000&lvl=' + lvl.toFixed(2);
+    };
+    $('#btnGenLtc').onclick = async () => {
+      const base = await this.probeBuiltin();
+      if (!base) return toast('内置服务未运行，双击「启动 LiveLyric.bat」后重试');
+      const url = genUrl(base);
+      $('#ltcGenTag').textContent = '生成中';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ltc_' + S.fps + 'fps_' + (new Date()).toISOString().slice(0, 10) + '.wav';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => { $('#ltcGenTag').textContent = 'WAV'; }, 1500);
+      toast('已生成 ' + S.fps + 'fps 时间码，开始下载');
+    };
+    $('#btnGenCopy').onclick = async () => {
+      const base = await this.probeBuiltin();
+      if (!base) return toast('内置服务未运行');
+      const url = genUrl(base);
+      try { await navigator.clipboard.writeText(url); toast('链接已复制'); }
+      catch (e) { toast('复制失败，请手动选中：' + url); }
+    };
+
+    /* --- 现场工具：倒计时 / 临时上屏 --- */
+    $('#btnCdStart').onclick = () => {
+      const m = parseFloat(($('#cdMin').value || '').replace(',', '.').trim());
+      if (!isFinite(m) || m <= 0) return toast('请填分钟数，例如 5');
+      S.cdTotal = m * 60;
+      S.cdEndAt = Date.now() + m * 60000;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+      toast('倒计时 ' + m + ' 分钟');
+    };
+    $('#btnCdStop').onclick = () => {
+      S.cdEndAt = 0; S.cdTotal = 0;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    };
+    sw('#swCdFull', 'cdFull');
+    $('#btnSubShow').onclick = () => {
+      const v = ($('#subText').value || '').trim();
+      if (!v) return toast('先填要上屏的文字');
+      S.subText = v; S.subOn = true;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    };
+    $('#btnSubHide').onclick = () => {
+      S.subOn = false;
+      saveState(); UI.sync(); Bus.send('state', UI.payload());
+    };
+
+    /* --- lyric import --- */
+    $('#btnImport').onclick = () => $('#lyricFile').click();
+    $('#lyricFile').onchange = ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => this.loadText(String(r.result), f.name);
+      r.readAsText(f, 'utf-8');
+    };
+    $('#btnPaste').onclick = () => $('#modalPaste').classList.add('on');
+    $('#btnPasteOk').onclick = () => {
+      const v = $('#pasteArea').value;
+      if (!v.trim()) return;
+      this.loadText(v, '粘贴文本');
+      $('#modalPaste').classList.remove('on');
+    };
+    $('#btnOnline').onclick = async () => {
+      $('#olApi').value = S.api || '';
+      $('#modalOnline').classList.add('on');
+      const st = $('#olState');
+      st.textContent = '检测中…';
+      st.style.color = '#8b96a8';
+      const base = await this.probeBuiltin(true);
+      if (base) {
+        st.textContent = '已连接 · 内置服务（' + base + '）';
+        st.style.color = '#3ddc97';
+      } else {
+        st.textContent = '未运行 · 双击「启动 LiveLyric.bat」即可';
+        st.style.color = '#ffb84d';
+      }
+    };
+    $('#btnOnlineOk').onclick = () => this.fetchOnline();
+    $$('[data-close]').forEach(b => b.addEventListener('click', () => $('#' + b.dataset.close).classList.remove('on')));
+    $$('#olSrc button').forEach(b => b.addEventListener('click', () => {
+      $$('#olSrc button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    }));
+
+    /* --- transport --- */
+    $('#btnGo').onclick = () => Transport.go();
+    $('#btnNext').onclick = () => Transport.next();
+    $('#btnPrev').onclick = () => Transport.prev();
+    $('#btnPrevCue').onclick = () => Transport.prev();
+    $('#btnClear').onclick = () => Transport.clear();
+    $('#progressWrap').onclick = ev => {
+      if (!LINES.length) return;
+      const rect = ev.currentTarget.getBoundingClientRect();
+      const r = (ev.clientX - rect.left) / rect.width;
+      const idx = Math.round((LINES.length - 1) * r);
+      Transport.alignTo(idx);
+    };
+
+    /* --- output --- */
+    $('#btnOutput').onclick = () => {
+      const url = location.href.replace(/[?&]mode=output/, '').replace(/&viewId=\d+/, '').replace(/[?&]debug=1/, '');
+      const sep = url.indexOf('?') >= 0 ? '&' : '?';
+      const w = window.open(url + sep + 'mode=output', 'livelyric_out', 'width=1280,height=720');
+      if (!w) { toast('弹窗被拦截，请允许此站点弹出窗口'); return; }
+      const push = () => { Bus.send('state', UI.payload()); Bus.send('lines', { lines: LINES, meta: META }); };
+      [0, 300, 1000, 2500].forEach(d => setTimeout(push, d));
+      if (this._mon) clearInterval(this._mon);
+      this._mon = setInterval(() => {
+        if (w.closed) { clearInterval(this._mon); this._mon = 0; this.setOffline(); }
+      }, 2000);
+    };
+    $('#btnFullscreen').onclick = () => {
+      const url = location.href.replace(/[?&]mode=output/, '').replace(/[?&]debug=1/, '');
+      const sep = url.indexOf('?') >= 0 ? '&' : '?';
+      const w = window.open(url + sep + 'mode=output&fs=1', 'livelyric_out', 'width=1280,height=720');
+      if (!w) return toast('弹窗被拦截');
+      setTimeout(() => {
+        try { w.document.documentElement.requestFullscreen(); } catch (e) { }
+      }, 500);
+    };
+
+    /* --- keyboard --- */
+    document.addEventListener('keydown', ev => {
+      if (ev.target && /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
+      if (ev.code === 'Space') { ev.preventDefault(); Transport.go(); }
+      else if (ev.key === 'ArrowRight') { ev.preventDefault(); Transport.next(); }
+      else if (ev.key === 'ArrowLeft') { ev.preventDefault(); Transport.prev(); }
+      else if (ev.key === 'Escape') { Transport.clear(); }
+    });
+  },
+
+  refreshDevices() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    Ltc.listDevices().then(list => {
+      const sel = $('#ltcDevice');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">默认输入</option>';
+      list.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.deviceId;
+        o.textContent = d.label || ('输入 ' + d.deviceId.slice(0, 6));
+        sel.appendChild(o);
+      });
+      sel.value = cur;
+    }).catch(() => { });
+  },
+
+  loadText(raw, name) {
+    _libTitle = '';
+    LINES = parseLyric(raw);
+    if (!LINES.length) { toast('未解析到有效歌词'); return; }
+    META.source = name || '本地';
+    /* 带 ⌚ 页标记的歌词库自带曲名时优先用它，文件名会变成「4ROCK-歌词库」这种无关名字 */
+    META.title = (_libTitle || '').trim()
+      || ((name ? name.replace(/\.(lrc|txt|ttml|xml|srt|ass|json)$/i, '') : META.title) || '未命名');
+    _libTitle = '';
+    _slotCache = null;
+    /* 歌词自带真实时间轴、驱动却停在「时间码均摊」时行号会被均匀铺开、整首错位。
+       这里只提示，不替用户改——两种驱动都要能选，是用户的现场判断。 */
+    if (S.tcMode === 'clock' && linesHaveTimeline(LINES)) {
+      setTimeout(() => toast('当前驱动是「时间码均摊」：这份歌词自带时间轴，均摊会整段错位；精确对齐请切到「时间轴」'), 20);
+    }
+    saveState();
+    UI.renderList();
+    UI.sync();
+    Bus.send('lines', { lines: LINES, meta: META });
+    Bus.send('state', UI.payload());
+    toast('已载入 ' + LINES.length + ' 行');
+  },
+
+  /* 探测内置歌词服务：同源优先，其次本机默认端口 17321（兼容旧的 3000） */
+  async probeBuiltin(force) {
+    if (!force && this._base !== undefined) return this._base;
+    const cands = [];
+    if (/^https?:/.test(location.protocol)) cands.push(location.origin);
+    cands.push('http://127.0.0.1:17321');
+    cands.push('http://127.0.0.1:3000');
+    for (const base of cands) {
+      try {
+        const r = await fetch(base + '/health', { cache: 'no-store', credentials: 'omit' });
+        const j = await r.json();
+        if (j && j.app === 'livelyric') { this._base = base; return base; }
+      } catch (e) { /* 忽略，试下一个 */ }
+    }
+    this._base = null;
+    return null;
+  },
+
+  async fetchOnline() {
+    const src = ($('#olSrc .on') || {}).dataset ? $('#olSrc .on').dataset.ol : 'netease';
+    const raw = $('#olInput').value.trim();
+    if (!raw) return toast('请填写歌名、分享链接或歌曲 ID');
+    const api = $('#olApi').value.trim();
+    S.api = api;
+    saveState();
+    const p = parseSongInput(raw);
+    const ckey = cacheKeyOf(src, p);
+    const list = [];
+    const base = await this.probeBuiltin();
+    if (base) {
+      const q = (p.id && !p.kw) ? 'id=' + encodeURIComponent(p.id) : 'kw=' + encodeURIComponent(p.kw || p.id);
+      list.push(base + '/lyric?' + q + '&src=' + src);
+    }
+    if (api) {
+      list.push(api.replace('{id}', encodeURIComponent(p.id || raw)).replace('{kw}', encodeURIComponent(p.kw || raw)));
+    }
+
+    /* 服务不可用：直接用本地缓存，演出断了网也不会哑 */
+    if (!list.length) {
+      const c = cacheGet(ckey);
+      if (c) {
+        this.loadText(c.lrc, c.title + (c.word ? ' · 逐字' : ''));
+        $('#modalOnline').classList.remove('on');
+        return toast('内置服务未运行，已用离线缓存（' + c.title + '）');
+      }
+      return toast('内置服务未运行：双击「启动 LiveLyric.bat」，或填自定义接口');
+    }
+
+    let lastErr = '';
+    for (const url of list) {
+      try {
+        const res = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok || (data && data.ok === 0)) throw new Error((data && data.err) || ('HTTP ' + res.status));
+        const lyric = pickLyric(data);
+        if (!lyric || !lyric.trim()) throw new Error('响应里没有歌词');
+        const title = (src === 'netease' ? '网易云 ' : 'QQ音乐 ') + (data.title || p.kw || p.id) + (data.word ? ' · 逐字' : '');
+        this.loadText(lyric, title);
+        cachePut(ckey, { title: title, src: src, word: !!data.word, lrc: lyric });
+        $('#modalOnline').classList.remove('on');
+        toast(data.word ? '已载入逐字歌词' : '已载入歌词（行级时间轴）');
+        return;
+      } catch (e) { lastErr = e.message; }
+    }
+
+    const c = cacheGet(ckey);
+    if (c) {
+      this.loadText(c.lrc, c.title + '（缓存）');
+      $('#modalOnline').classList.remove('on');
+      return toast('联网失败（' + lastErr + '），已用离线缓存');
+    }
+    toast('获取失败：' + lastErr);
+  },
+
+  loadSample(silent) {
+    const demo = [
+      '[00:00.00]LiveLyric',
+      '[00:03.60]把时间码变成歌词的节拍',
+      '[00:08.20]<00:08.20>逐<00:08.55>字<00:08.90>同<00:09.25>步<00:09.60>，<00:09.95>帧<00:10.30>级<00:10.65>对<00:11.00>齐',
+      '[00:13.40]QLab 送出 LTC 或 MTC',
+      '[00:17.60]歌词就跟着演出走',
+      '[00:21.80]不需要在台上找进度条',
+      '[00:26.20]<00:26.20>这首歌<00:26.90>没有<00:27.60>伴奏<00:28.30>也<00:29.00>能<00:29.70>排练',
+      '[00:32.60]把歌词拖进来，对齐一次',
+      '[00:36.80]剩下的交给时间码',
+      '[00:41.60]LiveLyric · 实时歌词同步'
+    ].join('\n');
+    this.loadText(demo, '示例歌词');
+    if (!silent) {
+      Clock.startInternal();
+      UI.sync();
+    }
+  }
+};
+
+/* =====================================================================
+   工具
+   ===================================================================== */
+const LYRIC_CACHE_KEY = 'livelyric.cache.v1';
+/* 偏移滑块的物理范围，所有写入点都要夹在这个区间内：
+   一旦被写成几百万毫秒，整首歌词会整体错位到无法匹配 */
+const OFFSET_LIMIT = 3000;
+function clampOffset(v) {
+  v = Number(v);
+  if (!isFinite(v)) return 0;
+  v = Math.round(v);
+  return Math.max(-OFFSET_LIMIT, Math.min(OFFSET_LIMIT, v));
+}
+const LYRIC_CACHE_MAX = 24;
+
+function cacheKeyOf(src, p) {
+  const id = p && p.id ? p.id : '';
+  const kw = p && p.kw ? String(p.kw).trim().toLowerCase() : '';
+  return src + ':' + (id || kw);
+}
+function cacheReadAll() {
+  try { return JSON.parse(localStorage.getItem(LYRIC_CACHE_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function cacheGet(k) {
+  const m = cacheReadAll();
+  const e = m[k];
+  if (!e || !e.lrc) return null;
+  /* 命中就刷新时间戳，做最近最少使用淘汰 */
+  e.at = Date.now();
+  try { localStorage.setItem(LYRIC_CACHE_KEY, JSON.stringify(m)); } catch (err) { }
+  return e;
+}
+function cachePut(k, o) {
+  try {
+    const m = cacheReadAll();
+    m[k] = Object.assign({ at: Date.now() }, o);
+    const keys = Object.keys(m);
+    const over = keys.length - LYRIC_CACHE_MAX;
+    if (over > 0) {
+      keys.sort((a, b) => (m[a].at || 0) - (m[b].at || 0))
+        .slice(0, over)
+        .forEach(x => { delete m[x]; });
+    }
+    localStorage.setItem(LYRIC_CACHE_KEY, JSON.stringify(m));
+  } catch (e) { /* 配额满或隐私模式，缓存失败不影响主流程 */ }
+}
+
+function parseSongInput(s) {
+  const m1 = s.match(/[?&#]id=(\d{4,})/) || s.match(/song\/(\d{4,})/);
+  if (m1) return { id: m1[1] };
+  const m2 = s.match(/songDetail\/([0-9A-Za-z]{8,})/);
+  if (m2) return { id: m2[1] };
+  if (/^\d{4,}$/.test(s)) return { id: s };
+  return { kw: s };
+}
+
+function pickLyric(data) {
+  if (!data) return '';
+  if (typeof data === 'string') return data;
+  if (typeof data.lrc === 'string') return data.lrc;
+  if (data.lrc && data.lrc.lyric) return data.lrc.lyric;
+  if (typeof data.message === 'string') return data.message;
+  if (data.lyric) return data.lyric;
+  if (data.data) {
+    if (typeof data.data === 'string') return data.data;
+    if (data.data.lyric) return data.data.lyric;
+    if (data.data.conteng) return data.data.conteng;
+  }
+  if (data.klyric && data.klyric.lyric) return data.klyric.lyric;
+  return '';
+}
+let toastTimer = 0;
+function toast(msg) {
+  const el = $('#toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+}
+function SOCK_UI() {
+  const el = $('#wsState');
+  if (!el) return;
+  const map = {
+    open: '已连接', connecting: '连接中', closed: '已断开',
+    retry: '重连中', error: '错误', stale: '无数据', idle: '未连接'
+  };
+  el.textContent = map[WsBridge.state] || WsBridge.state;
+  el.style.color = WsBridge.state === 'open' ? 'var(--acc)'
+    : (WsBridge.state === 'retry' || WsBridge.state === 'stale' ? 'var(--warn, #ff8a3d)' : 'var(--mute)');
+}
+
+/* =====================================================================
+   LTC 自检（用于验证解码位域，不依赖真实硬件）
+   ===================================================================== */
+function ltcBits(hh, mm, ss, ff, fps) {
+  const b = new Array(80).fill(0);
+  const set = (from, len, val) => { for (let i = 0; i < len; i++) b[from + i] = (val >> i) & 1; };
+  set(0, 4, ff % 10);
+  set(8, 2, Math.floor(ff / 10));
+  set(16, 4, ss % 10);
+  set(24, 3, Math.floor(ss / 10));
+  set(32, 4, mm % 10);
+  set(40, 3, Math.floor(mm / 10));
+  set(48, 4, hh % 10);
+  set(56, 2, Math.floor(hh / 10));
+  const SYNC = '0011111111111101';
+  for (let i = 0; i < 16; i++) b[64 + i] = +SYNC[i];
+  return b;
+}
+function ltcWave(bits, fps, sr) {
+  const unit = sr / (fps * 160);
+  const out = [];
+  let pol = 1;
+  const half = Math.round(unit);
+  const put = (p, n) => { for (let k = 0; k < n; k++) out.push(p); };
+  for (let i = 0; i < bits.length; i++) {
+    pol = -pol;                       /* bit cell 边界必翻转 */
+    if (bits[i] === 1) {
+      put(pol, half);
+      pol = -pol;                     /* 中点额外翻转 */
+      put(pol, half);
+    } else {
+      put(pol, half * 2);
+    }
+  }
+  return out;
+}
+function ltcSelfTest() {
+  const sr = 48000, fps = 25;
+  const frames = [];
+  const allBits = [];
+  for (let i = 0; i < 6; i++) {
+    const b = ltcBits(1, 2, 3, i, fps);
+    frames.push(b);
+    for (let k = 0; k < 80; k++) allBits.push(b[k]);
+  }
+  const got = [];
+  const d = new LtcDecoder(fps, sr);
+  d.onFrame = v => got.push(+v.toFixed(3));
+  d.push(new Float32Array(ltcWave(allBits, fps, sr)));
+  return {
+    expect: '01:02:03:00 ~ 01:02:03:04',
+    count: got.length,
+    values: got.map(v => secToTc(v, fps))
+  };
+}
+
+/* =====================================================================
+  启动
+   ===================================================================== */
+function clockTest() {
+  const a = S.anchor;
+  const bakSong = Clock.songIdx;
+  const bakOnSong = Clock.onSong;
+  const bakList = S.setlist;
+  const bakSrc = Clock.src;
+  /* 外部时钟的续走状态，测完原样放回，否则界面上的时间码会跳回 0 */
+  const bakExt = { stamp: Clock.extStamp, song: Clock.extSong, tc: Clock.tcSec, last: Clock.lastExt };
+  /* 自检不切歌、也不走歌单：喂进来的测试时间码可能落在真实歌单区间里 */
+  Clock.onSong = null;
+  S.setlist = [];
+  Clock.songIdx = 0;
+  S.anchor = 3600;
+  Clock.extStamp = 0;
+  Clock.setSrc('ltc');
+  Clock.feed(3600 + 8.4);
+  const song = Clock.nowSong();
+  const idx = indexAt(song);
+  const r = { song: +song.toFixed(2), idx: idx, text: LINES[idx] ? LINES[idx].text : '' };
+  /* 恢复原时钟源与续走状态 */
+  Clock.setSrc(bakSrc);
+  Clock.extStamp = bakExt.stamp;
+  Clock.extSong = bakExt.song;
+  Clock.tcSec = bakExt.tc;
+  Clock.lastExt = bakExt.last;
+  Clock.locked = !!bakExt.stamp;
+  Clock.running = !!bakExt.stamp;
+  S.anchor = a;
+  S.setlist = bakList;
+  Clock.songIdx = bakSong;
+  Clock.onSong = bakOnSong;
+  return r;
+}
+/* 多首 + 三种驱动模式的自检：不依赖外部时间码硬件 */
+function setlistTest() {
+  const bak = { setlist: S.setlist, songIdx: S.songIdx, anchor: S.anchor, mode: S.tcMode };
+  /* 自检期间用记录回调替换真实切歌，避免写回 localStorage 污染状态 */
+  const bakOnSong = Clock.onSong;
+  const got = [];
+  Clock.onSong = (idx) => got.push(idx);
+  const bakCue = LINES.length > 3 ? LINES[3].cue : undefined;
+  const mk = (title, tc) => ({ tcIn: tc, anchor: tc, offset: 0, title: title, lines: [] });
+  S.setlist = [mk('A', 3600), mk('B', 3900)];
+  Clock.songIdx = 0;
+  Clock.extStamp = 0;
+  const c = {};
+  Clock.feed(3700); c.inA = Clock.songIdx;
+  Clock.feed(4000); c.inB = Clock.songIdx;
+  Clock.feed(3500); c.before = Clock.songIdx;
+  Clock.feed(3810); c.backA = Clock.songIdx;
+  c.hits = got.join(',');
+  c.song = +Clock.nowSong().toFixed(2);
+
+  /* 三种模式的取行差异 */
+  S.tcMode = 'timeline'; c.tl = indexAt(20, LINES);
+  S.tcMode = 'clock'; c.cl = indexAt(20, LINES);
+  S.tcMode = 'cue'; c.cue0 = indexAt(0, LINES);
+  if (LINES.length > 3) { LINES[3].cue = 15; _cueRows = null; c.cueHit = indexAt(16, LINES); }
+
+  S.setlist = bak.setlist; S.songIdx = bak.songIdx; S.tcMode = bak.mode;
+  S.anchor = bak.anchor;
+  Clock.songIdx = bak.songIdx; Clock.extStamp = 0;
+  Clock.locked = false; Clock.running = false;
+  Clock.onSong = bakOnSong;
+  if (LINES.length > 3) LINES[3].cue = bakCue;
+  _cueRows = null;
+  return c;
+}
+if (QS.get('debug') === '1') {
+  window.__LL = {
+    Clock: Clock, Ltc: Ltc, Mtc: Mtc, WsBridge: WsBridge, LtcDecoder: LtcDecoder,
+    selfTest: ltcSelfTest,
+    get S() { return S; }, get LINES() { return LINES; }, get META() { return META; },
+    seek: t => Transport.seekSong(t),
+    render: () => Renderer.render(Clock.nowSong(), Transport.blackout)
+  };
+  /* 自检结果写进 title，便于外部读取（页面内变量在隔离环境下不可见） */
+  setTimeout(() => {
+    try {
+      const probe = LINES.slice(0, 40).filter(l => l.words && l.words.length).length;
+      document.title = 'SELFTEST ' + JSON.stringify({
+        v: APP_VER,
+        ltc: ltcSelfTest(), clock: clockTest(),
+        src: S.src, csrc: Clock.src, tc: +Clock.nowTc().toFixed(2), ext: Clock.extStamp,
+        run: Clock.running, lock: Clock.locked,
+        ws: {
+          st: WsBridge.state, url: WsBridge.url, gen: WsBridge.gen,
+          rs: WsBridge.sock ? WsBridge.sock.readyState : -1,
+          last: WsBridge.lastMsg ? Date.now() - WsBridge.lastMsg : -1,
+          err: WsBridge.lastErr || '', raw: WsBridge.lastRaw || ''
+        },
+        parse: { total: LINES.length, withWords: probe, w0: LINES[0] && LINES[0].words ? LINES[0].words.length : -1 },
+        setlist: setlistTest()
+      });
+    } catch (e) { document.title = 'SELFTEST ERR ' + e.message; }
+  }, 1200);
+}
+if (IS_OUT) {
+  document.body.classList.add('is-output');
+  document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    OutApp.init();
+    if (QS.get('fs') === '1') setTimeout(() => OutApp.toggleFullscreen(), 300);
+  });
+  if (document.readyState !== 'loading') { loadState(); OutApp.init(); }
+} else {
+  document.addEventListener('DOMContentLoaded', () => ConsoleApp.init());
+  if (document.readyState !== 'loading') { ConsoleApp.init(); }
+}
+</script>
+</body>
+</html>

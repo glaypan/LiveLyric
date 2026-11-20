@@ -1,0 +1,26 @@
+# 构建产物由 tools/build.ps1 生成，仓库内保留一份便于直接下载/打开
+!LiveLyric.html
+
+# 根目录的片段副本与测试副本是历史工作残留，以 src/ 与 tests/ 为准
+/_p*.html
+/_p*.css
+/_p*.js
+/_test_*.js
+
+# 历史发行包走 GitHub Releases，不入库
+*.zip
+
+# 本地验证与探针中间物
+_*.png
+_*.py
+_*.json
+_probe_*
+_ws*
+_check.js
+
+# 系统与编辑器
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+node_modules/

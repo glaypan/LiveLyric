@@ -1,0 +1,90 @@
+<div class="out" id="out">
+  <div class="stage" id="stage">
+    <div class="frame" id="frame">
+      <div class="bglayer" id="bgLayer"></div>
+      <div class="bg-scrim" id="bgScrim"></div>
+      <div class="lyrwrap"><div class="lyrstack" id="stack"></div></div>
+      <div class="cdwrap" id="cdWrap"><div class="cdval" id="cdVal">05:00</div></div>
+      <div class="subwrap" id="subWrap"><div class="subtxt" id="subTxt"></div></div>
+      <div class="outhud tl" id="hudTL"><span class="dot"></span><span id="hudSrc">INTERNAL</span><span class="dim">|</span><span id="hudState">STANDBY</span></div>
+      <div class="outhud br" id="hudBR"><span id="hudTc">00:00:00:00</span><span class="dim">|</span><span id="hudFps">25FPS</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalPaste">
+  <div class="box">
+    <h4>粘贴歌词</h4>
+    <textarea id="pasteArea" placeholder="[00:12.31]第一句&#10;[00:16.80]第二句&#10;&#10;支持 LRC / 增强 LRC(逐字) / TTML / SRT / 纯文本"></textarea>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalPaste">取消</button>
+      <button class="btn primary" id="btnPasteOk">载入</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalOnline">
+  <div class="box">
+    <h4>在线获取歌词</h4>
+    <div class="row" style="margin-bottom:12px"><span class="lab">服务</span>
+      <span id="olState" style="font-size:12px;color:#8b96a8">检测中…</span>
+    </div>
+    <div class="row"><span class="lab">来源</span>
+      <div class="seg" style="width:170px" id="olSrc">
+        <button data-ol="netease" class="on">网易云</button>
+        <button data-ol="qq">QQ音乐</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="lab">歌名 / 分享链接 / 歌曲 ID</span></div>
+    <input id="olInput" placeholder="直接填歌名最快，例如：晴天">
+    <div class="row" style="margin-top:10px"><span class="lab">自定义接口（可选）</span></div>
+    <input id="olApi" placeholder="留空即使用内置服务">
+    <div class="hint" style="margin-top:8px">
+      内置服务随「启动 LiveLyric.bat」一起运行，同源直连，无需填地址。<br>
+      直接打开 html 文件时浏览器无法直连官方接口，可另填代理地址，`{kw}` / `{id}` 作占位。
+    </div>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalOnline">取消</button>
+      <button class="btn primary" id="btnOnlineOk">获取</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalSetlist">
+  <div class="box" style="width:min(560px,86vw)">
+    <h4>歌单 · 多首时间码</h4>
+    <div class="hint" style="margin-bottom:10px">
+      每首绑定一个入点时间码，时间码进入该区间就自动切歌。切歌用歌单里存的歌词快照，不需要联网。
+    </div>
+    <div id="slList" class="sllist">
+      <div class="empty" style="padding:18px 0;text-align:center;color:#6f7a8c;font-size:12px">还没有曲目</div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="lab">响应方式</span><span class="val" id="slModeVal">独立</span></div>
+    <div class="seg" id="slModeSeg">
+      <button data-slmode="indep" class="on">独立</button>
+      <button data-slmode="chain">连续</button>
+    </div>
+    <div class="row" style="margin-top:9px"><span class="lab">每首间隔（分钟）</span>
+      <input id="slGap" type="number" min="0" max="30" value="0" style="width:78px;padding:5px 8px">
+    </div>
+    <div class="hint" style="margin-top:6px">连续模式按列表顺序累计前一首总时长（含间隔）推后本首起点；歌词内的码本身不变。</div>
+    <div class="row" style="margin-top:10px"><span class="lab">入点时间码</span></div>
+    <input id="slTc" placeholder="01:00:00:00">
+    <div class="grid2" style="margin-top:8px">
+      <button class="btn sm" id="btnSlFromNow">用当前时间码</button>
+      <button class="btn sm" id="btnSlAdd">把当前歌词加入</button>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      入点留空则自动接在上一首后面。已加曲目可点「定位」把时间码跳过去预览。
+    </div>
+    <div class="acts">
+      <button class="btn ghost" data-close="modalSetlist">关闭</button>
+      <button class="btn primary" id="btnSlClear">清空歌单</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";

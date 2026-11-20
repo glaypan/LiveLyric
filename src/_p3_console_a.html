@@ -1,0 +1,189 @@
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark"></div>
+      <div><b>LiveLyric</b><span>Timecode · Lyrics</span></div>
+    </div>
+
+    <div class="tcblock">
+      <div class="tcbig" id="tcBig">00:00:00:00</div>
+      <div>
+        <div class="tcfps" id="tcFps">25 FPS · NDF</div>
+        <div class="tcstate" style="margin-top:4px">
+          <span class="led" id="ledIn"></span><span id="tcSrcName">内部时钟</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="topright">
+      <span class="chip" id="outState" style="cursor:default"><span class="led"></span>输出未连接</span>
+      <button class="btn" id="btnOutput">打开输出窗口</button>
+      <button class="btn primary" id="btnFullscreen">输出全屏</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <div class="col l">
+      <div class="card">
+        <div class="card-h"><h3>时间码源</h3><span class="tag" id="srcTag">IDLE</span></div>
+        <div class="seg" id="srcSeg" style="margin-bottom:11px">
+          <button data-src="internal" class="on">内部</button>
+          <button data-src="ltc">LTC</button>
+          <button data-src="mtc">MTC</button>
+          <button data-src="ws">网络</button>
+        </div>
+
+        <div id="paneInternal">
+          <div class="row"><span class="lab">音频</span><span class="val" id="audioName" style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未加载</span></div>
+          <input type="file" id="audioFile" accept="audio/*" style="display:none">
+          <div class="grid2">
+            <button class="btn sm" id="btnAudio">载入音频</button>
+            <button class="btn sm" id="btnDemo">载入示例</button>
+          </div>
+          <div class="hint" style="margin-top:9px">以音频播放进度作为时间基准，用于无外部时间码时的排练与试听。</div>
+        </div>
+
+        <div id="paneLtc" class="hide">
+          <div class="row"><span class="lab">输入设备</span></div>
+          <select id="ltcDevice" style="margin-bottom:8px"><option value="">默认输入</option></select>
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnLtcStart">开始解码</button>
+            <button class="btn sm" id="btnLtcStop">停止</button>
+          </div>
+          <div class="row"><span class="lab">信号</span><span class="val" id="ltcLevel">—</span></div>
+          <div class="meter" style="margin-bottom:9px"><i id="ltcMeter"></i></div>
+          <div class="row"><span class="lab">锁定</span><span class="val" id="ltcLock" style="color:var(--mute)">未锁定</span></div>
+          <div class="hint" style="margin-top:9px">QLab 用 Timecode Cue 输出 LTC 到音频接口，本机线路输入接入后开始解码。<em style="color:var(--warn);font-style:normal">LTC 音量很高，切勿送往扬声器。</em></div>
+        </div>
+
+        <div id="paneMtc" class="hide">
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnMidi">连接 MIDI</button>
+            <button class="btn sm" id="btnMidiOff">断开</button>
+          </div>
+          <div class="row"><span class="lab">端口</span><span class="val" id="midiPort" style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未连接</span></div>
+          <div class="row"><span class="lab">收到帧</span><span class="val" id="midiFrames">0</span></div>
+          <div class="hint" style="margin-top:9px">QLab 添加 Timecode Cue（MTC）→ MIDI Patch 指向虚拟端口（macOS IAC Driver / Windows loopMIDI），此处连接同名端口。</div>
+        </div>
+
+        <div id="paneWs" class="hide">
+          <input id="wsUrl" placeholder="ws://127.0.0.1:8080" style="margin-bottom:8px">
+          <div class="grid2" style="margin-bottom:8px">
+            <button class="btn sm" id="btnWs">连接</button>
+            <button class="btn sm" id="btnWsOff">断开</button>
+          </div>
+          <div class="row"><span class="lab">状态</span><span class="val" id="wsState">未连接</span></div>
+          <div class="hint" style="margin-top:9px">接收 JSON：{"tc":"01:00:00:00","fps":25} 或 {"song":12.4}。用于把 OSC 桥接成 WebSocket 后接入。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>对齐与偏移</h3><span class="tag" id="anchorTag">—</span></div>
+        <div class="row"><span class="lab">帧率</span>
+          <div class="seg" style="width:152px" id="fpsSeg">
+            <button data-fps="24">24</button><button data-fps="25" class="on">25</button><button data-fps="30">30</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="lab">歌曲 0s 对应</span><span class="val" id="anchorTx">01:00:00:00</span></div>
+        <div class="grid2" style="margin-top:2px">
+          <button class="btn sm" id="btnAnchorNow">以此帧为 0s</button>
+          <button class="btn sm" id="btnAnchorLine">对齐当前行</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">微调 offset</span><span class="val" id="offsetVal">+0 ms</span></div>
+        <input type="range" id="offset" min="-3000" max="3000" step="10" value="0">
+        <div class="grid3" style="margin-top:2px">
+          <button class="btn sm" data-off="-100">−100</button>
+          <button class="btn sm" data-off="0">归零</button>
+          <button class="btn sm" data-off="100">+100</button>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="lab">平滑追赶</span><span class="sw on" id="swSmooth"></span></div>
+        <div class="hint">时间码跳变时平滑过渡，避免歌词瞬移。</div>
+
+        <div class="row" style="margin-top:12px"><span class="lab">歌词驱动</span><span class="val" id="tcModeVal">时间轴</span></div>
+        <div class="grid3" id="tcModeSeg">
+          <button class="btn sm on" data-tcmode="timeline">时间轴</button>
+          <button class="btn sm" data-tcmode="clock">均摊</button>
+          <button class="btn sm" data-tcmode="cue">Cue</button>
+        </div>
+        <div class="hint">「时间轴」按歌词自带时间走（有 <span style="color:var(--acc)">[mm:ss]</span> 或逐字码时用它）；「均摊」把行数平铺到整首时长，只给没有时间码的纯文本歌词用。要外部时间码（LTC/MTC/网络）驱动，请到「时间码源」切换，不是这里。</div>
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnCueMark">打点到当前行</button>
+          <button class="btn sm" id="btnSetlist">歌单 · 多首</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>时间码发生器</h3><span class="tag" id="ltcGenTag">WAV</span></div>
+        <div class="row"><span class="lab">起始码</span></div>
+        <input id="genStart" placeholder="01:00:00:00" value="01:00:00:00">
+        <div class="row" style="margin-top:9px"><span class="lab">时长（秒）</span><span class="val" id="genDurVal">180</span></div>
+        <input type="range" id="genDur" min="10" max="600" step="10" value="180">
+        <div class="row"><span class="lab">输出电平</span><span class="val" id="genLvlVal">50%</span></div>
+        <input type="range" id="genLvl" min="5" max="100" step="5" value="50">
+        <div class="grid2" style="margin-top:4px">
+          <button class="btn sm" id="btnGenLtc">生成并下载</button>
+          <button class="btn sm" id="btnGenCopy">复制链接</button>
+        </div>
+        <div class="hint" style="margin-top:8px">按当前帧率编码，与节目单对齐后可喂给调音台 / 录像机。<em style="color:var(--warn);font-style:normal">不要用扬声器播放这段音频。</em></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>本首偏移</h3><span class="tag" id="psTag">+0 ms</span></div>
+        <div class="row"><span class="lab">曲目</span><span class="val" id="psTitle" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+        <div class="row" style="margin-top:9px"><span class="lab">整体平移（秒）</span></div>
+        <input id="psSec" placeholder="例如 2.5 或 -1.2">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnPsApply">应用</button>
+          <button class="btn sm" id="btnPsRestore">恢复</button>
+        </div>
+        <div class="hint" style="margin-top:8px">只作用于当前这一首，与上面的全局微调叠加；「恢复」一次性退回本首最初的码。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>画面</h3></div>
+        <div class="row"><span class="lab">比例</span><span class="val" id="ratioVal">16:9</span></div>
+        <div class="grid3" style="margin-bottom:10px" id="ratioSeg">
+          <button class="btn sm" data-ratio="16:9">16:9</button>
+          <button class="btn sm" data-ratio="9:16">9:16</button>
+          <button class="btn sm" data-ratio="1:1">1:1</button>
+          <button class="btn sm" data-ratio="4:3">4:3</button>
+          <button class="btn sm" data-ratio="21:9">21:9</button>
+          <button class="btn sm" data-ratio="fit">自适应</button>
+        </div>
+        <div class="row"><span class="lab">显示时间码</span><span class="sw" id="swShowTc"></span></div>
+        <div class="row"><span class="lab">上下行残影</span><span class="sw on" id="swCap"></span></div>
+        <div class="row" style="margin-top:12px"><span class="lab">镜面</span><span class="val" id="mirrorVal">关闭</span></div>
+        <div class="seg" id="mirrorSeg">
+          <button data-mirror="off" class="on">关闭</button>
+          <button data-mirror="x">左右</button>
+          <button data-mirror="y">上下</button>
+        </div>
+        <div class="hint" style="margin-top:8px">只翻转歌词画面，HUD 与控制台不动。带反光镜的提词器用左右。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>现场工具</h3><span class="tag" id="cdTag">IDLE</span></div>
+        <div class="row"><span class="lab">倒计时（分钟）</span></div>
+        <input id="cdMin" placeholder="例如 5" inputmode="decimal">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnCdStart">开始倒计时</button>
+          <button class="btn sm" id="btnCdStop">停止 / 隐藏</button>
+        </div>
+        <div class="row" style="margin-top:9px"><span class="lab">全屏大字</span><span class="sw" id="swCdFull"></span></div>
+        <div style="border-top:1px solid var(--line);margin:12px 0 10px"></div>
+        <div class="row"><span class="lab">临时上屏</span></div>
+        <input id="subText" placeholder="例如：下一首《夜空中最亮的星》">
+        <div class="grid2" style="margin-top:8px">
+          <button class="btn sm" id="btnSubShow">上屏</button>
+          <button class="btn sm" id="btnSubHide">清除</button>
+        </div>
+        <div class="hint" style="margin-top:8px">临时文字压在歌词上方，不影响当前歌词页；倒计时最后 10 秒红白闪烁。</div>
+      </div>
+    </div>
