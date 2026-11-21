@@ -1,7 +1,7 @@
 /* 复核 rawSong 的口径：内部音频源不扣本首偏移，外部源要扣 */
 const fs = require('fs');
 const vm = require('vm');
-const src = fs.readFileSync('E:\\AI\\豆包\\vj\\LiveLyric\\_p9_js_console.js', 'utf8');
+const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', '_p9_js_console.js'), 'utf8');
 const fn = src.slice(src.indexOf('function rawSong'), src.indexOf('const Transport'));
 
 function run(srcMode, perSong) {

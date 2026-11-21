@@ -1,5 +1,48 @@
 # 更新日志
 
+## v1.4.11 — 2026-11-21
+
+**纯工程侧补丁：构建命令跑不起来，时钟回归测试是坏的。界面与运行行为零变化。**
+
+### 修 1：`tools/build.ps1` 在 Windows PowerShell 5.1 下直接语法报错
+
+**现象**：按 README 第十一节写的命令 `powershell -ExecutionPolicy Bypass -File tools\build.ps1` 执行，报一串 `Missing closing ')'` / `The string is missing the terminator`，构建失败。
+
+**根因**：脚本是无 BOM 的 UTF-8，且含中文注释。Windows PowerShell 5.1 在没有 BOM 时按 ANSI（本机 cp936）解码，某些汉字尾字节把紧随其后的 `"` 吞进字符里，字符串因此少了收尾引号，整份脚本解析崩塌。与脚本逻辑无关，纯编码问题。
+
+**修法**：改为 UTF-8 **带 BOM**。5.1 与 pwsh 7 都能正确识别，注释与字符串不再错位。
+
+**验证**：两种宿主分别执行，产物均为 156,069 B、SHA256 与改前逐字节一致（当时 `042B1E40…693830`）。
+
+### 修 2：5 个回归测试读错了源，时钟测试自 v1.4.9 起一直 TypeError
+
+**现象**：`node tests\_test_clock.js` 抛 `TypeError: this.songRaw is not a function`。
+
+**根因**（两层）：
+
+1. 测试用绝对路径读仓库根目录的 `_p6_js_core.js` / `_p7_js_clock.js` / `_p9_js_console.js`。这些是早期工作残留副本，已被 `.gitignore` 排除；改 `src/` 后测试仍在测旧副本，属于会静默失真的隐患。
+2. v1.4.9 把 `Clock.nowSong()` 拆成 `songRaw()` + `songShift()` + `nowSong()`，测试仍只抽取 `nowSong` 原文执行，`this.songRaw` 自然不存在。
+
+**修法**：5 个测试全部改读 `src/`（`path.join(__dirname, '..', 'src', …)`）；时钟测试同时装载 `songRaw` / `songShift` / `nowSong` 三个方法，并补一个 v1.4.9 回归用例 D（`offset +2500 ms` 时 `songRaw=12.30`、`nowSong=14.80`）。
+
+**验证**：5 个脚本全部通过。
+
+```
+_test_clock  RESULT {"A":true,"B":true,"C":true,"D":true} PASS
+_test_rawsong RESULT {"internalKeepsRaw":true,"externalSubtracts":true,"zeroIsZero":true}
+_test_slot   独立/连续/间隔/切回 四项缓存判定全 true
+_test_parse_tc 66 行、时间单调递增、纯文本形态首行 53s
+_test_embed  回转 [[0,"第一行"],[3.6,"第二行"],[13.167,"第三行"]] PASS
+```
+
+### 其他
+
+- 启动链路实测：`node LiveLyricServer.js --port 17399 --no-open` → `/health` 返回 `{"ok":1,"app":"livelyric","port":17399}`。
+- 重写 `HANDOFF.md`：补齐定位、目录、构建、端口与启动、三个 localStorage 键、两个已修缺陷的根因、已知边界与待办。
+- 产物字节数不变（版本号等长替换），SHA256 变为 `458CF0CC…D406552`。
+
+---
+
 ## v1.4.10 — 2026-11-20
 
 **国风竖排 + 边缘渐隐时，两端没淡出，反而被裁了一刀。**

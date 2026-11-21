@@ -2,7 +2,7 @@
    相对时间轴 → ⌚绝对码库 → 再解析回来，行时间必须一致（误差 ≤1 帧）。 */
 const fs = require('fs');
 const vm = require('vm');
-const src = fs.readFileSync('E:\\AI\\豆包\\vj\\LiveLyric\\_p6_js_core.js', 'utf8');
+const src = fs.readFileSync(require('path').join(__dirname, '..', 'src', '_p6_js_core.js'), 'utf8');
 
 function grab(header) {
   const start = src.indexOf(header);

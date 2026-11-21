@@ -1,7 +1,8 @@
 /* 独立验证歌单「连续模式」的累计推后：从 _p6_js_core.js 原样提取 entryDur / slotList */
 const fs = require('fs');
 const vm = require('vm');
-const src = fs.readFileSync('E:\\AI\\豆包\\vj\\LiveLyric\\_p6_js_core.js', 'utf8');
+const path = require('path');
+const src = fs.readFileSync(path.join(__dirname, '..', 'src', '_p6_js_core.js'), 'utf8');
 
 function grab(name) {
   const start = src.indexOf('function ' + name);

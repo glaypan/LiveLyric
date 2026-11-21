@@ -39,7 +39,7 @@ function tcToSec(tc, fps) {
 function msToSec(s) { const v = parseFloat(s); return isFinite(v) ? v / 1000 : 0; }
 
 /* ---------- 状态 ---------- */
-const APP_VER = '1.4.10';
+const APP_VER = '1.4.11';
 const DEF_STATE = {
   style: 'classic', bg: 'none', fs: 100, lh: 150, ratio: '16:9',
   fps: 25, offset: 0, smooth: true, showTc: false, cap: true,

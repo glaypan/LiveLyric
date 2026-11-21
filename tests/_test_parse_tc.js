@@ -2,8 +2,8 @@
    从 _p6_js_core.js 里原样提取 dedupeSort / parseTcLib，不重写解析逻辑。 */
 const fs = require('fs');
 const vm = require('vm');
-const path = 'E:\\AI\\豆包\\vj\\LiveLyric\\_p6_js_core.js';
-const src = fs.readFileSync(path, 'utf8');
+const srcPath = require('path').join(__dirname, '..', 'src', '_p6_js_core.js');
+const src = fs.readFileSync(srcPath, 'utf8');
 
 function grab(name) {
   const start = src.indexOf('function ' + name);
