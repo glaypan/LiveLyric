@@ -12,10 +12,10 @@
 |---|---|
 | 本地目录 | `E:\AI\豆包\vj\LiveLyric` |
 | GitHub | https://github.com/glaypan/LiveLyric （公开） |
-| 当前版本 | v1.4.12（新增日/夜界面主题与投屏全屏设置；工作区改动未提交） |
-| 最新 Release | https://github.com/glaypan/LiveLyric/releases/tag/v1.4.11 （v1.4.12 尚未打包） |
-| 分支 | `main`，最新发布 tag `v1.4.11`（`e3b3550`）；历史提交 `8456683`（首版交接说明）、`2a20864`（调试入口）、`7ffb65f`（v1.4.10） |
-| 工作区状态 | v1.4.12 已提交到本地 `main`，**未推送、未打 tag、未出 ZIP**（以 `git status` 为准） |
+| 当前版本 | v1.4.12（日/夜界面主题 + 投屏全屏设置，已发布） |
+| 最新 Release | https://github.com/glaypan/LiveLyric/releases/tag/v1.4.12 （资产 `LiveLyric-v1.4.12.zip`，100,047 B） |
+| 分支 | `main`，tag `v1.4.12` 指向 `c705c4c`；历史提交 `82d216f`（v1.4.12 功能）、`e3b3550`（v1.4.11）、`8456683`（首版交接说明）、`2a20864`（调试入口）、`7ffb65f`（v1.4.10） |
+| 工作区状态 | v1.4.12 已提交、打 tag 并发布，工作区应为干净状态（以 `git status` 为准） |
 
 ## 目录结构
 
@@ -191,7 +191,7 @@ node LiveLyricServer.js --port 17321 --no-open
 1. **根目录副本清理**：根目录 `_p*.html/css/js`、`_test_*.js` 是历史残留（`.gitignore` 已排除）。测试已全部改为读 `src/`，但副本仍留在磁盘上，容易误改。建议删除，或明确标注为「只读快照」。
 2. **测试夹具外部依赖**：`tests/_test_parse_tc.js` 仍读 `E:\BaiduNetdiskDownload\金老斯手搓提词器\4ROCK-歌词库(带时间码).json`，换机必挂。应裁一份小样本放进 `tests/fixtures/`，测试内改读相对路径。
 3. **测试退出码**：`_test_slot` / `_test_embed` / `_test_parse_tc` / `_test_rawsong` 只打印结果，不设 `process.exitCode`，无法用于自动检查。建议统一 `RESULT … PASS/FAIL` 并在失败时非零退出。
-4. **版本与发行**：v1.4.12 的功能已构建（`177,040 B`）但**未提交、未打 tag、未出 ZIP**。发布时按旧流程：改 `APP_VER` 与 `<title>`（本轮已改）、更新 README/CHANGELOG、跑构建、出 5 文件 ZIP、commit + tag + `gh release create`。
+4. **版本与发行**：v1.4.12 已发布（tag + Release + 5 文件 ZIP + `RELEASE-v1.4.12.md`）。下个版本仍按同一流程：改 `APP_VER` 与 `<title>`、更新 README/CHANGELOG、跑构建核对字节与哈希、出 5 文件 ZIP、commit + annotated tag + `gh release create`。
 5. **真机验证缺口**：macOS Safari 的 `webkit` 前缀链与 `⌃⌘F` 指引、真实双屏下的副屏落位、`getScreenDetails` 授权后的多屏枚举，均只在本机 Windows + Playwright 单屏环境验证过；上台前建议在目标 Mac + 投影上走一遍「打开并投屏」。
 6. **网易云逐字**：匿名态拿不到 `yrc`。若真需要网易云字级时间，得带登录 cookie 走 eapi（服务端已留有 EAPI 签名路径，尚未接登录态）。
 7. **跨 origin 迁移**：换端口/换机器没有自动搬迁提示，只能靠「导出工程 → 导入」。可在启动时检测「本 origin 无 state 但同机其它端口有缓存」并提示。
