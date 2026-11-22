@@ -374,6 +374,194 @@ function sortLines(arr) {
 /* =====================================================================
    控制台初始化
    ===================================================================== */
+/* =====================================================================
+   界面主题（v1.4.12）
+   日版 / 夜版 / 自动。只给 body 加 th-day，切换 var(--*) 令牌，不改任何组件规则。
+   输出窗口永远不加这个类，投屏画面不受影响。
+   ===================================================================== */
+function themeNow() {
+  if (S.uiTheme === 'auto') {
+    try { return window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'day' : 'night'; }
+    catch (e) { return 'night'; }
+  }
+  return S.uiTheme === 'day' ? 'day' : 'night';
+}
+function applyTheme() {
+  if (IS_OUT) return;
+  const t = themeNow();
+  document.body.classList.toggle('th-day', t === 'day');
+  const tag = $('#uiThemeTag');
+  if (tag) tag.textContent = t === 'day' ? '日版' : '夜版';
+  $$('#themeSeg button').forEach(b => {
+    const on = b.dataset.theme === S.uiTheme;
+    if (b.classList.contains('on') !== on) b.classList.toggle('on', on);
+  });
+}
+function setTheme(v) {
+  if (!['day', 'night', 'auto'].includes(v)) return;
+  S.uiTheme = v;
+  saveState();
+  applyTheme();
+}
+
+/* =====================================================================
+   投屏（v1.4.12）
+   目标屏幕 / 全屏方式 / 手动坐标。屏幕列表依赖 Window Management API
+   （Chrome / Edge 支持，Safari 不支持，退化为「跟随窗口所在屏」+ 窗口铺满）。
+   ===================================================================== */
+const Cast = {
+  details: null, win: null, mon: 0,
+
+  init() {
+    S.cast = Object.assign({}, DEF_STATE.cast, S.cast || {});
+    this.renderSelect();
+    this.syncUI();
+    /* 之前授权过就静默刷新；没授权会 reject，不打扰用户 */
+    if ('getScreenDetails' in window) {
+      window.getScreenDetails().then(d => {
+        this.details = d;
+        this.renderSelect();
+        this.syncUI();
+      }).catch(() => { });
+    }
+  },
+
+  screens() { return (this.details && this.details.screens) || []; },
+
+  async scan() {
+    if (!('getScreenDetails' in window)) return { ok: 0, why: 'unsupported' };
+    try {
+      this.details = await Promise.race([
+        window.getScreenDetails(),
+        /* 授权弹窗可能一直挂着不返回，8 秒后按超时处理，按钮不至于永远转下去 */
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+      ]);
+      this.renderSelect();
+      this.syncUI();
+      return { ok: 1, n: this.screens().length };
+    } catch (e) {
+      return { ok: 0, why: (e && e.message === 'timeout') ? 'timeout' : 'denied' };
+    }
+  },
+
+  renderSelect() {
+    const sel = $('#castScreen');
+    if (!sel) return;
+    const cur = (S.cast && S.cast.screen) || 'auto';
+    sel.innerHTML = '';
+    const add = (val, text) => {
+      const o = document.createElement('option');
+      o.value = val; o.textContent = text;
+      sel.appendChild(o);
+    };
+    add('auto', '跟随窗口所在屏');
+    this.screens().forEach((s, i) => {
+      add(s.label || ('screen' + i),
+        (s.isPrimary ? '主屏' : '副屏') + ' ' + (i + 1) + ' · ' + Math.round(s.width) + '×' + Math.round(s.height));
+    });
+    add('manual', '手动坐标');
+    const known = cur === 'auto' || cur === 'manual' || this.screens().some(s => s.label === cur);
+    sel.value = known ? cur : 'auto';
+    if (!known) S.cast.screen = 'auto';
+  },
+
+  syncUI() {
+    const c = S.cast || {};
+    const info = $('#castInfo');
+    if (info) {
+      if (c.manual || c.screen === 'manual') info.textContent = '手动 ' + (c.manualX || '0') + ',' + (c.manualY || '0');
+      else if (c.screen && c.screen !== 'auto') {
+        const s = this.screens().find(x => x.label === c.screen);
+        info.textContent = s ? ((s.isPrimary ? '主屏' : '副屏') + ' · ' + Math.round(s.width) + '×' + Math.round(s.height)) : '已保存的屏幕';
+      } else info.textContent = '跟随窗口所在屏';
+    }
+    const sw = $('#swCastManual');
+    if (sw) sw.classList.toggle('on', !!c.manual);
+    const box = $('#castManual');
+    if (box) box.classList.toggle('hide', !c.manual);
+    if ($('#castX')) $('#castX').value = c.manualX || '';
+    if ($('#castY')) $('#castY').value = c.manualY || '';
+    const mv = { auto: '自动', native: '原生全屏', window: '窗口铺满' }[c.mode] || '自动';
+    if ($('#castModeVal')) $('#castModeVal').textContent = mv;
+    $$('#castModeSeg button').forEach(b => {
+      const on = b.dataset.castmode === c.mode;
+      if (b.classList.contains('on') !== on) b.classList.toggle('on', on);
+    });
+    const tag = $('#castTag');
+    if (tag) {
+      tag.textContent = this.screens().length ? (this.screens().length + ' 屏') : '单屏';
+      tag.className = 'tag' + (this.screens().length > 1 ? ' ok' : '');
+    }
+    const hint = $('#castHint');
+    if (hint) {
+      hint.textContent = ('getScreenDetails' in window)
+        ? '选好目标屏幕后点「打开并投屏」。macOS 上若浏览器拒绝脚本全屏，会自动退回窗口铺满，真全屏请在输出窗口按 ⌃⌘F。'
+        : '此浏览器不提供屏幕列表（Safari 常见）：把输出窗口拖到副屏，点「窗口铺满」，再在窗口内按 ⌃⌘F 或点 ⛶。';
+    }
+  },
+
+  /* 目标窗口的屏幕矩形；拿不到就用当前窗口所在屏 */
+  targetRect() {
+    const scr = window.screen || {};
+    const c = S.cast || {};
+    let left = Number.isFinite(scr.availLeft) ? scr.availLeft : 0;
+    let top = Number.isFinite(scr.availTop) ? scr.availTop : 0;
+    let width = scr.availWidth || scr.width || 1280;
+    let height = scr.availHeight || scr.height || 720;
+    if (c.manual || c.screen === 'manual') {
+      const x = parseInt(c.manualX, 10), y = parseInt(c.manualY, 10);
+      if (Number.isFinite(x)) left = x;
+      if (Number.isFinite(y)) top = y;
+    } else if (c.screen && c.screen !== 'auto') {
+      const s = this.screens().find(x => x.label === c.screen);
+      if (s) {
+        left = Number.isFinite(s.availLeft) ? s.availLeft : s.left;
+        top = Number.isFinite(s.availTop) ? s.availTop : s.top;
+        width = s.availWidth || s.width;
+        height = s.availHeight || s.height;
+      }
+    }
+    return { left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) };
+  },
+
+  open(cast) {
+    const url = location.href.replace(/[?&]mode=output/, '').replace(/&viewId=\d+/, '').replace(/[?&]debug=1/, '').replace(/[?&]fs=1/, '').replace(/[?&]cast=1/, '');
+    const sep = url.indexOf('?') >= 0 ? '&' : '?';
+    const r = this.targetRect();
+    const feats = 'popup=yes,width=' + r.width + ',height=' + r.height + ',left=' + r.left + ',top=' + r.top;
+    const w = window.open(url + sep + 'mode=output' + (cast ? '&cast=1' : ''), 'livelyric_out', feats);
+    if (!w) { toast('弹窗被拦截，请允许此站点弹出窗口'); return null; }
+    this.win = w;
+    const place = () => {
+      try { w.moveTo(r.left, r.top); w.resizeTo(Math.max(320, r.width), Math.max(240, r.height)); } catch (e) { /* 跨屏移动被拒时保持原样 */ }
+    };
+    setTimeout(place, 80);
+    setTimeout(place, 700);
+    const push = () => { Bus.send('state', UI.payload()); Bus.send('lines', { lines: LINES, meta: META }); };
+    [0, 300, 1000, 2500].forEach(d => setTimeout(push, d));
+    this.monitor();
+    return w;
+  },
+
+  /* 投屏：位置交给 window.open 的 feats，铺满/全屏交给输出窗口自己（带 cast=1 打开）。
+     跨窗口替它调 resizeTo/fullscreen 会被浏览器时好时坏地忽略，不如让那边自己来。 */
+  apply() {
+    const w = this.open(true);
+    if (!w) return;
+    toast('已按设置送到目标屏幕；若仍带浏览器边框，在输出窗按 F 或点右侧 ⛶ 即真全屏');
+  },
+
+  monitor() {
+    if (this.mon) clearInterval(this.mon);
+    this.mon = setInterval(() => {
+      if (!this.win || this.win.closed) {
+        clearInterval(this.mon); this.mon = 0; this.win = null;
+        ConsoleApp.setOffline();
+      }
+    }, 2000);
+  }
+};
+
 const ConsoleApp = {
   init() {
     loadState();
@@ -386,12 +574,24 @@ const ConsoleApp = {
     /* 多首：时间码跨过入点自动切歌 */
     Clock.onSong = (idx) => this.switchToSong(idx);
     Clock.songIdx = S.songIdx || 0;
+    applyTheme();
+    Cast.init();
+    /* 系统深浅色变化时，只有「自动」才需要重算 */
+    try {
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+        if (S.uiTheme === 'auto') applyTheme();
+      });
+    } catch (e) { /* 老浏览器没有 addEventListener 版本，忽略 */ }
     UI.renderList();
     UI.sync();
     UI.loop();
     setInterval(() => UI.watchdog(), 100);
     Bus.listen(msg => {
       if (msg.type === 'hello' && msg.from === 'output') this.onOutputConnected();
+      /* 输出层进全屏失败会回报：控制台给出可执行的手势指引，而不是静默 */
+      else if (msg.type === 'fs' && msg.ok === 0) {
+        toast('浏览器拒绝脚本全屏，已改为窗口铺满；真全屏请在输出窗口按 ⌃⌘F（macOS）/ F11');
+      }
     });
     this.refreshDevices();
     if (!LINES.length) this.loadSample(true);
@@ -990,14 +1190,14 @@ const ConsoleApp = {
       $('#modalOnline').classList.add('on');
       const st = $('#olState');
       st.textContent = '检测中…';
-      st.style.color = '#8b96a8';
+      st.style.color = 'var(--st-idle)';
       const base = await this.probeBuiltin(true);
       if (base) {
         st.textContent = '已连接 · 内置服务（' + base + '）';
-        st.style.color = '#3ddc97';
+        st.style.color = 'var(--st-ok)';
       } else {
         st.textContent = '未运行 · 双击「启动 LiveLyric.bat」即可';
-        st.style.color = '#ffb84d';
+        st.style.color = 'var(--st-warn)';
       }
     };
     $('#btnOnlineOk').onclick = () => this.fetchOnline();
@@ -1021,27 +1221,55 @@ const ConsoleApp = {
       Transport.alignTo(idx);
     };
 
-    /* --- output --- */
-    $('#btnOutput').onclick = () => {
-      const url = location.href.replace(/[?&]mode=output/, '').replace(/&viewId=\d+/, '').replace(/[?&]debug=1/, '');
-      const sep = url.indexOf('?') >= 0 ? '&' : '?';
-      const w = window.open(url + sep + 'mode=output', 'livelyric_out', 'width=1280,height=720');
-      if (!w) { toast('弹窗被拦截，请允许此站点弹出窗口'); return; }
-      const push = () => { Bus.send('state', UI.payload()); Bus.send('lines', { lines: LINES, meta: META }); };
-      [0, 300, 1000, 2500].forEach(d => setTimeout(push, d));
-      if (this._mon) clearInterval(this._mon);
-      this._mon = setInterval(() => {
-        if (w.closed) { clearInterval(this._mon); this._mon = 0; this.setOffline(); }
-      }, 2000);
+    /* --- 外观 / 投屏设置（v1.4.12）--- */
+    $$('#themeSeg button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
+    const saveCast = () => { saveState(); Cast.syncUI(); };
+    if ($('#castScreen')) $('#castScreen').onchange = ev => {
+      S.cast.screen = ev.target.value;
+      if (ev.target.value === 'manual') S.cast.manual = true;
+      saveCast();
     };
+    $$('#castModeSeg button').forEach(b => b.addEventListener('click', () => {
+      S.cast.mode = b.dataset.castmode;
+      saveCast();
+    }));
+    if ($('#swCastManual')) $('#swCastManual').onclick = () => {
+      S.cast.manual = !S.cast.manual;
+      if (S.cast.manual && S.cast.screen === 'auto') S.cast.screen = 'manual';
+      saveCast();
+    };
+    ['castX', 'castY'].forEach(id => {
+      const el = $('#' + id);
+      if (!el) return;
+      el.oninput = ev => { if (id === 'castX') S.cast.manualX = ev.target.value; else S.cast.manualY = ev.target.value; };
+      el.onchange = saveCast;
+    });
+    if ($('#btnCastScan')) $('#btnCastScan').onclick = async () => {
+      const btn = $('#btnCastScan');
+      const old = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '检测中…';
+      const r = await Cast.scan();
+      btn.disabled = false;
+      btn.textContent = old;
+      if (r.ok) toast('已检测到 ' + r.n + ' 块屏幕');
+      else if (r.why === 'unsupported') toast('此浏览器不提供屏幕列表：把输出窗口拖到副屏后点「窗口铺满」，再按 ⌃⌘F');
+      else if (r.why === 'timeout') toast('等待屏幕授权超时：请在浏览器弹出的授权提示里允许「查看屏幕信息」');
+      else toast('未获得屏幕信息授权：可在浏览器站点设置里放开「窗口管理」权限');
+      Cast.syncUI();
+    };
+    if ($('#btnCastOpen')) $('#btnCastOpen').onclick = () => Cast.apply();
+
+    /* --- output --- */
+    $('#btnOutput').onclick = () => { Cast.open(false); };
     $('#btnFullscreen').onclick = () => {
-      const url = location.href.replace(/[?&]mode=output/, '').replace(/[?&]debug=1/, '');
-      const sep = url.indexOf('?') >= 0 ? '&' : '?';
-      const w = window.open(url + sep + 'mode=output&fs=1', 'livelyric_out', 'width=1280,height=720');
-      if (!w) return toast('弹窗被拦截');
-      setTimeout(() => {
-        try { w.document.documentElement.requestFullscreen(); } catch (e) { }
-      }, 500);
+      if (Cast.win && !Cast.win.closed) {
+        /* 让输出窗口自己开全屏：跨窗口发指令，由它在本窗口执行 */
+        Bus.send('fsreq', {});
+        toast('已请求输出窗口全屏；若仍带边框请按 F / ⛶');
+        return;
+      }
+      Cast.open(true);
     };
 
     /* --- keyboard --- */
@@ -1443,6 +1671,19 @@ if (IS_OUT) {
     loadState();
     OutApp.init();
     if (QS.get('fs') === '1') setTimeout(() => OutApp.toggleFullscreen(), 300);
+    /* 控制台「打开并投屏」带来的 cast=1：由输出窗口自己动手铺满。
+       跨窗口调 resizeTo 会被浏览器时好时坏地忽略，自己调最稳。 */
+    if (QS.get('cast') === '1') setTimeout(() => {
+      const mode = (S.cast && S.cast.mode) || 'auto';
+      if (mode === 'window') {
+        const ok = LyricOut.fill();
+        LyricOut.showHint(ok
+          ? '已铺满当前屏幕。要隐藏标题栏的真全屏：macOS 按 ⌃⌘F，Windows 按 F11'
+          : '此浏览器不允许脚本全屏：macOS 请按 ⌃⌘F，Windows 请按 F11');
+      } else {
+        OutApp.enterFullscreen('auto');
+      }
+    }, 350);
   });
   if (document.readyState !== 'loading') { loadState(); OutApp.init(); }
 } else {

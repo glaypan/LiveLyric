@@ -39,7 +39,7 @@ function tcToSec(tc, fps) {
 function msToSec(s) { const v = parseFloat(s); return isFinite(v) ? v / 1000 : 0; }
 
 /* ---------- 状态 ---------- */
-const APP_VER = '1.4.11';
+const APP_VER = '1.4.12';
 const DEF_STATE = {
   style: 'classic', bg: 'none', fs: 100, lh: 150, ratio: '16:9',
   fps: 25, offset: 0, smooth: true, showTc: false, cap: true,
@@ -65,7 +65,18 @@ const DEF_STATE = {
   setlistMode: 'indep', setlistGap: 0,
   /* 多首：每首带自己的入出点与基准，时间码落进区间就切歌 */
   setlist: [],
-  songIdx: 0
+  songIdx: 0,
+  /* 界面主题（v1.4.12）：night 夜版 / day 日版 / auto 跟随系统。只换控制台配色，投屏不受影响 */
+  uiTheme: 'night',
+  /* 投屏设置（v1.4.12）：
+     screen  'auto' 跟随窗口所在屏 | 'manual' 手动坐标 | 屏幕 label
+     mode    'auto' 先原生全屏、失败铺满 | 'native' 只原生 | 'window' 只铺满
+     manual  是否启用手动坐标；manualX/Y 为屏幕坐标，可为负（副屏在主屏左侧时） */
+  cast: {
+    screen: 'auto', mode: 'auto', manual: false,
+    manualX: '', manualY: '',
+    autoOpen: false
+  }
 };
 let S = Object.assign({}, DEF_STATE);
 let LINES = [];
@@ -91,6 +102,9 @@ function loadState() {
       const bad = S.offset;
       S.offset = clampOffset(S.offset);
       if (S.offset !== bad) saveState();   // 直接把脏值修回存档，下次不必再夹
+      /* 新字段用默认值补齐：老存档没有 cast / uiTheme，整体替换会丢键 */
+      S.cast = Object.assign({}, DEF_STATE.cast, (d.S.cast || {}));
+      if (!['day', 'night', 'auto'].includes(S.uiTheme)) S.uiTheme = 'night';
     }
     if (Array.isArray(d.LINES)) LINES = d.LINES;
     if (d.META) META = Object.assign({ title: '', artist: '', source: '' }, d.META);

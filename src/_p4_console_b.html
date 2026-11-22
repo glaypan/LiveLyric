@@ -18,6 +18,16 @@
 
     <div class="col r">
       <div class="card">
+        <div class="card-h"><h3>界面</h3><span class="tag" id="uiThemeTag">夜版</span></div>
+        <div class="seg" id="themeSeg">
+          <button data-theme="day">日版</button>
+          <button data-theme="night" class="on">夜版</button>
+          <button data-theme="auto">自动</button>
+        </div>
+        <div class="hint" style="margin-top:8px">只换控制台与弹窗的配色，投屏画面不受影响。「自动」跟随系统深浅色。</div>
+      </div>
+
+      <div class="card">
         <div class="card-h"><h3>歌词样式</h3><span class="tag" id="styleTag">CLASSIC</span></div>
         <div class="grid2" id="styleGrid">
           <button class="chip on" data-style="classic">经典居中</button>
@@ -86,7 +96,29 @@
         <div class="preview" id="miniPreview">
           <div class="ptext" id="miniText" style="font-size:15px">预览</div>
         </div>
-        <div class="hint" style="margin-top:9px">输出窗口独立渲染，可拖到扩展显示器后按 F11 或点击「输出全屏」。</div>
+        <div class="hint" style="margin-top:9px">输出窗口独立渲染。要投到副屏，用下面的「投屏 / 全屏」选屏幕；macOS Safari 需在输出窗口内按 ⌃⌘F 或点 ⛶。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>投屏 / 全屏</h3><span class="tag" id="castTag">—</span></div>
+        <div class="row"><span class="lab">目标屏幕</span><span class="val" id="castInfo" style="font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">跟随窗口所在屏</span></div>
+        <select id="castScreen" style="margin-bottom:8px"><option value="auto">跟随窗口所在屏</option></select>
+        <div class="grid2" style="margin-bottom:8px">
+          <button class="btn sm" id="btnCastScan">刷新屏幕列表</button>
+          <button class="btn sm primary" id="btnCastOpen">打开并投屏</button>
+        </div>
+        <div class="row"><span class="lab">全屏方式</span><span class="val" id="castModeVal">自动</span></div>
+        <div class="seg" id="castModeSeg">
+          <button data-castmode="auto" class="on">自动</button>
+          <button data-castmode="native">原生全屏</button>
+          <button data-castmode="window">窗口铺满</button>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="lab">手动坐标</span><span class="sw" id="swCastManual"></span></div>
+        <div id="castManual" class="grid2 hide" style="margin-bottom:2px">
+          <input id="castX" placeholder="X（可为负）" inputmode="numeric">
+          <input id="castY" placeholder="Y（可为负）" inputmode="numeric">
+        </div>
+        <div class="hint" id="castHint" style="margin-top:8px">「原生全屏」需要窗口内一次点击；被浏览器拒绝时会自动退回「窗口铺满」，并按设置记住位置。</div>
       </div>
 
       <div class="card">

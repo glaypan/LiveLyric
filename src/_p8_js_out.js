@@ -304,6 +304,46 @@ const Renderer = {
 /* =====================================================================
    输出窗口主循环
    ===================================================================== */
+/* =====================================================================
+   全屏能力（v1.4.12）
+   浏览器要求 requestFullscreen 由「本窗口内的用户手势」触发，控制台隔窗调用会被拒。
+   所以输出层自己保留一个入口：先试标准 API，再试 webkit 前缀，全部失败则退化为「铺满当前屏」。
+   ===================================================================== */
+const FS = {
+  isNative() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  },
+  async enter() {
+    if (this.isNative()) return true;
+    const el = document.documentElement;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.msRequestFullscreen;
+    if (!fn) return false;
+    try {
+      const r = fn.call(el, { navigationUI: 'hide' });
+      if (r && typeof r.then === 'function') await r;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+  async exit() {
+    const fn = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen || document.msExitFullscreen;
+    if (!fn) return;
+    try { await fn.call(document); } catch (e) { /* 已退出或权限问题，忽略 */ }
+  },
+  /* 伪全屏：把窗口撑到所在屏幕的可用区。脚本不能隐藏浏览器标题栏，但内容区能铺满 */
+  fill() {
+    const s = window.screen || {};
+    const left = Number.isFinite(s.availLeft) ? s.availLeft : 0;
+    const top = Number.isFinite(s.availTop) ? s.availTop : 0;
+    try {
+      window.moveTo(left, top);
+      window.resizeTo(s.availWidth || s.width, s.availHeight || s.height);
+      return true;
+    } catch (e) { return false; }
+  }
+};
+
 const OutApp = {
   snap: { song: 0, tc: 0, running: false, locked: false, at: 0 },
   blackout: false,
@@ -339,6 +379,26 @@ const OutApp = {
       if (e.key === 'f' || e.key === 'F') this.toggleFullscreen();
       if (e.key === 'Escape') Bus.send('cmd', { cmd: 'clear' });
     });
+    /* 输出窗口自己的全屏入口：只在鼠标活动时浮现，避免常驻在投屏画面上 */
+    const fsBtn = document.getElementById('btnOutFs');
+    if (fsBtn) {
+      fsBtn.onclick = () => this.toggleFullscreen();
+      const show = () => {
+        if (FS.isNative()) return;
+        fsBtn.classList.add('show');
+        clearTimeout(this._fsBtnT);
+        this._fsBtnT = setTimeout(() => fsBtn.classList.remove('show'), 3400);
+      };
+      document.addEventListener('mousemove', show);
+      show();
+    }
+    const onFsChange = () => {
+      const on = FS.isNative();
+      document.body.classList.toggle('fs-on', on);
+      if (on) document.body.classList.remove('fs-fill');
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
   },
 
   now() {
@@ -352,6 +412,11 @@ const OutApp = {
   },
 
   onBus(msg) {
+    if (msg.type === 'fsreq') {
+      /* 控制台点「输出全屏」：指令过来，由本窗口执行（跨窗口直接调会被浏览器拒） */
+      this.enterFullscreen('auto');
+      return;
+    }
     if (msg.type === 'clock') {
       this.snap.song = msg.song || 0;
       this.snap.tc = msg.tc || 0;
@@ -381,10 +446,42 @@ const OutApp = {
   },
 
   toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => { });
-    } else {
-      document.exitFullscreen().catch(() => { });
+    return this.enterFullscreen('manual');
+  },
+
+  /* kind: manual（用户点按钮/按键）| auto（带 fs=1 打开或控制台请求） */
+  async enterFullscreen(kind) {
+    if (FS.isNative()) { await FS.exit(); document.body.classList.remove('fs-on'); return { ok: 1, action: 'exit' }; }
+    const native = await FS.enter();
+    if (native) {
+      document.body.classList.add('fs-on');
+      Bus.send('fs', { ok: 1, action: 'native' });
+      return { ok: 1, action: 'native' };
     }
+    /* 原生被拒：不硬失败，退到「窗口铺满」，至少内容区能占满屏幕 */
+    const filled = FS.fill();
+    document.body.classList.toggle('fs-fill', filled);
+    this.showFsHint(filled
+      ? '已铺满当前屏幕。要隐藏标题栏的真全屏：macOS 按 ⌃⌘F，Windows 按 F11'
+      : '此浏览器不允许脚本全屏：macOS 请按 ⌃⌘F，Windows 请按 F11');
+    Bus.send('fs', { ok: 0, action: filled ? 'window' : 'none', kind: kind || 'manual' });
+    return { ok: 0, action: filled ? 'window' : 'none' };
+  },
+
+  showFsHint(text) {
+    const el = document.getElementById('fsHint');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('on');
+    clearTimeout(this._fsHintT);
+    this._fsHintT = setTimeout(() => el.classList.remove('on'), 5200);
   }
+};
+
+/* 控制台要能隔着窗口调用这个能力：顶层 const 不会挂到 window 上，必须显式暴露 */
+window.LyricOut = {
+  fullscreen: () => OutApp.enterFullscreen('auto'),
+  fill: () => { const ok = FS.fill(); document.body.classList.toggle('fs-fill', ok); return ok; },
+  isFullscreen: () => FS.isNative(),
+  showHint: (t) => OutApp.showFsHint(t)
 };

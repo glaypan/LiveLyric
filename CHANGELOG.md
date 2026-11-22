@@ -1,5 +1,59 @@
 # 更新日志
 
+## v1.4.12 — 2026-11-22
+
+**控制台拆出日版 / 夜版两套配色；macOS 上「投屏了但全屏不了」从根上解决。**
+
+### 新 1：界面日版 / 夜版 / 自动
+
+**需求**：白天、户外、亮环境里深色控制台反光看不清，需要一套浅色界面；演出时还是深色顺手。
+
+**做法**：不给每个组件写第二套规则，而是把颜色抽成语义令牌（`--bg` / `--panel` / `--surface` / `--field` / `--text` / `--dim` / `--mute` / `--acc` / `--line` / `--card-shadow` / `--st-ok` 等），只在 `body.th-day` 里重定义。组件规则一行不改，切主题只是换一组变量。
+
+- 三档：日版 / 夜版 / 自动（跟随系统 `prefers-color-scheme`）。存 `S.uiTheme`，落在 `livelyric.state.v1`，刷新后仍生效。
+- 位置：右栏「界面」卡片，带当前档位标签（日版 / 夜版）。
+- **输出窗口永远不加 `th-day`**：`applyTheme()` 里 `if (IS_OUT) return`，投屏画面不会因为控制台切日版而变浅。实测控制台 `th-day` 时输出窗 `body` 仍为 `is-output`、背景 `rgb(10,16,20)`。
+- 日版专门补了两处对比度：`.go` 播放键原先把 `#CFFFF7` 写死在亮底上几乎看不见，改用 `--go-ink` / `--go-run-ink` 令牌；在线取词弹窗的服务状态原是三处硬编码色（`#3ddc97` / `#ffb84d` / `#8b96a8`，浅底不可读），改为 `--st-ok` / `--st-warn` / `--st-idle`，日版分别落到 `#0B7A66` / `#8A5200` / `#66727F`。
+
+### 新 2：投屏 / 全屏设置（含副屏）
+
+**现象**：Mac 上接投影/电视，输出窗口打开后无法全屏，只能是个窗口。
+
+**根因**：`requestFullscreen()` 要求**调用它的那个文档里**有用户手势。原实现是控制台按钮点完去调 `outputWin.document.documentElement.requestFullscreen()` —— 跨窗口调用拿不到激活状态，浏览器一律拒绝；Safari 桌面端还缺部分 Fullscreen API。所以在控制台这边怎么点都不可能成功，跟权限、设备都无关。
+
+**修法**：把「全屏」的入口放回输出窗口自己身上，控制台只负责「把窗口送到哪块屏」。
+
+- 输出窗口新增常驻 ⛶ 按钮（`#btnOutFs`，右键位置 `right:2.6%`，垂直居中）+ `F` 键。点击在**本窗口内**发起全屏，标准 API 与 `webkit` 前缀链式尝试，成功进原生全屏；失败立刻退化为「窗口铺满」——按 `screen.availWidth/Height` 做 `resizeTo` + `moveTo`，并 toast 指引 macOS 用 `⌃⌘F`、Windows 用 `F11`。
+- 控制台新增「投屏 / 全屏」卡片：
+  - **目标屏幕**：`getScreenDetails()`（Window Management API，Chrome / Edge 支持）列出所有屏，可选「自动 / 副屏 label / 手动坐标」。Safari 没有该 API，卡片会退化到手动坐标并提示。
+  - **全屏方式**：自动 / 原生全屏 / 窗口铺满。
+  - **手动坐标**：允许负数（副屏在主屏左边就填 `-1920`，与 macOS「显示器排列」一致）。
+  - 「打开并投屏」：按 `S.cast` 定位开窗，并带 `cast=1`；**铺满由输出窗口自己执行**（跨窗口替它调 `resizeTo` 会被浏览器时好时坏地忽略，实测有窗口已就位但 `fs-fill` 没设上的情况）。
+- 顶栏「输出全屏」改为发一条 `fsreq` 总线指令，由输出窗口在本窗口执行；输出窗未开时才走 `cast=1` 开窗路径。
+- 状态新增 `S.cast = {screen, mode, manual, manualX, manualY, autoOpen}`，`loadState` 用 `DEF_STATE.cast` 浅合并补齐，老存档不会因为缺字段炸掉。
+- 跨窗口能力显式挂在 `window.LyricOut = {fullscreen, fill, isFullscreen, showHint}`：顶层 `const` 不进入 `window`，跨窗口必须显式挂。
+
+### 修：输出窗口的全屏按钮点不到
+
+**现象**：加了 ⛶ 按钮后，真实点击被 `<div id="stage" class="stage"> intercepts pointer events` 挡回。
+
+**根因**：首版为了不污染画面，`.outfs` 写成 `opacity:0; pointer-events:none`，只在 hover 时 `.show` 打开事件。Playwright 的真实点击先移动鼠标再按下，但按钮在点击判定那一刻仍是 `pointer-events:none`，事件穿透到下面的画面层。现场等于「有个看不见也点不着的按钮」。
+
+**修法**：改为**常驻可点**，默认 `opacity:.22`（不抢画面），hover / `.show` 提到 1 并换青绿底，`z-index` 抬到 6。原生全屏后 `body.fs-on` 直接 `display:none`，画面上不留痕迹。
+
+**验证**（Playwright，`127.0.0.1:17321`，真实点击）：
+
+- 输出窗口点 `#btnOutFs` → `document.fullscreenElement` 非空、`body='is-output fs-on'`、视口 `1907×970`，浏览器边框与按钮都消失。
+- 控制台点「输出全屏」→ 因跨文档无激活被拒，自动走铺满：窗口 `moveTo(0,0)`、`resizeTo` 到 `1920×1040`，toast 给出 `⌃⌘F` / `F11` 指引。
+- 日/夜切换：`body.className='th-day'`、`--bg=#EDF1F5`、卡片转白、标签「日版」；切夜版回到 `#0A1014`。刷新后仍保持。
+- 手动坐标 `-1920,0` → `Cast.targetRect()` 返回 `{left:-1920,top:0,…}` 且写入 `S.cast`（单屏机器上系统会把负坐标夹回 0，属 OS 限制）。
+- 主题隔离：控制台 `th-day` 时输出窗背景仍 `rgb(10,16,20)`。
+
+### 其他
+
+- 产物 177,862 B，SHA256 `1EF83B9A…42C5`。
+- 未在真机验证：macOS Safari 的 `webkit` 前缀链与 `⌃⌘F`、真实双屏下的副屏定位、`getScreenDetails` 授权后的多屏枚举（自动化环境里授权弹窗会挂起，已加 8 s 超时兜底）。
+
 ## v1.4.11 — 2026-11-21
 
 **纯工程侧补丁：构建命令跑不起来，时钟回归测试是坏的。界面与运行行为零变化。**
